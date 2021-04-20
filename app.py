@@ -5,6 +5,7 @@ import os
 
 from flask import Flask
 
+from helpers.auth_provider import auth_provider
 from s3repo.model import S3AsyncModel
 from s3repo.controller import S3Controller
 
@@ -35,10 +36,24 @@ def update_cfg_by_env(cfg):
     env_model_settings['access_key_id'] = os.getenv('S3_ACCESS_KEY')
     env_model_settings['secret_access_key'] = os.getenv('S3_SECRET_KEY')
 
+    env_common_settings = {}
+    env_common_settings['credentials'] = \
+        json.loads(os.environ.get('RWS_CREDENTIALS'))
+
+    # Check if credentials are set for at least one user.
+    if len(env_common_settings['credentials']) < 1:
+        RuntimeError('No credentials have been set for at least one user.')
+
     # Populate the config with data from environment variables.
     for item in env_model_settings.items():
         if item[1]:
             cfg['model'][item[0]] = item[1]
+
+    if cfg.get('common') is None:
+        cfg['common'] = {}
+    for item in env_common_settings.items():
+        if item[1]:
+            cfg['common'][item[0]] = item[1]
 
 
 def server_prepare():
@@ -46,6 +61,9 @@ def server_prepare():
     # Get configuration.
     cfg = load_cfg()
     update_cfg_by_env(cfg)
+
+    # Configure the auth module.
+    auth_provider.set_credentials(cfg['common']['credentials'])
 
     # Configure S3 backend.
     s3_model = S3AsyncModel(cfg['model'])

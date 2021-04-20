@@ -6,6 +6,7 @@ from flask import jsonify
 from flask import request
 from flask.views import MethodView
 
+from helpers.auth_provider import auth_provider
 from s3repo.model import ALLOWED_EXTENSIONS
 from s3repo.package import Package
 
@@ -51,6 +52,7 @@ class S3Controller(MethodView):
         response.status_code = status
         return response
 
+    @auth_provider.login_required
     def put(self, subpath):
         """Generates a Package object from the request and tries
         to upload it to S3 using S3Model.
