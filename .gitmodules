@@ -1,3 +1,0 @@
-[submodule "third_party/mkrepo"]
-	path = third_party/mkrepo
-	url = git@github.com:tarantool/mkrepo.git
