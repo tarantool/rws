@@ -32,7 +32,7 @@ All other dependencies will be installed using `pip`.
 
 Download service:
 ``` bash
-git clone https://github.com/LeonidVas/rws
+git clone https://github.com/tarantool/rws.git
 ```
 
 ### Install dependencies
