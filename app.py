@@ -67,8 +67,7 @@ def server_prepare():
 
     # Configure S3 backend.
     s3_model = S3AsyncModel(cfg['model'])
-    # Include after the `sync_all_repos()` will be implemented.
-    # s3_model.sync_all_repos()
+    s3_model.sync_all_repos()
 
     # Set the controller to work with S3.
     s3_view = S3Controller.as_view('s3_view', s3_model)

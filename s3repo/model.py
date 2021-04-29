@@ -1,5 +1,6 @@
 """Model for working with the repositories on S3."""
 
+from multiprocessing.pool import ThreadPool
 import re
 import subprocess as sp
 import time
@@ -182,13 +183,137 @@ class S3AsyncModel:
         self.unsync_repos.update(unsync_repos_local)
         self.sync_lock.release()
 
+    def _get_deb_repo_path(self, base_path):
+        """Returns the path (as list) to a deb-based repository
+        for updating metainformation with the 'mkrepo' tool.
+        base_path(string) - path to the distribution.
+        """
+
+        # Actually, S3 doesn't use the term directory/path, it simply maps the
+        # objects inside the bucket to a key like "path/to/object", where "/"
+        # is used as a delimiter for the common prefix of a group of keys.
+        # Here the term "path" is used to analogy with navigation in a local
+        # file system such as "ext4". Since we want to known if the repository
+        # contains files, we request if objects with this prefix("path") exist
+        # (it is enough for us to know that the first level content is exists).
+        #
+        # See https://github.com/boto/boto3/issues/134 for how to list first
+        # level content by a specific prefix.
+
+        path = base_path + '/'
+        list_objs = self.bucket.meta.client.list_objects_v2(
+            Bucket=self.bucket.name,
+            Delimiter='/',
+            Prefix=path
+        )
+        if list_objs.get('CommonPrefixes') is None:
+            return []
+
+        # In the case of a deb-base distribution, the meta information about
+        # packages in all versions of the distribution is updated together.
+        # So we just return the path to the distribution
+        return [path]
+
+    def _get_rpm_repo_path(self, base_path, dist_versions):
+        """Returns the list of the paths to the rpm-based reposies
+        for updating metainformation with the 'mkrepo' tool.
+        base_path(string) - path to the distribution.
+        dist_versions(list) - list of the distribution versions.
+        """
+        # See the first comment in "_get_deb_repo_path" method.
+
+        # In the case of an rpm-based distribution, one distribution version can
+        # include several repositories (for example "x86_64" and "SRPM").
+        # We must collect them all.
+        repos_list = []
+        for ver in dist_versions:
+            # Path to all repositories of the distribution version.
+            common_path = '/'.join([base_path, ver]) + '/'
+            list_objs = self.bucket.meta.client.list_objects_v2(
+                Bucket=self.bucket.name,
+                Delimiter='/',
+                Prefix=common_path
+            )
+            dist_repos_list = list_objs.get('CommonPrefixes')
+            if dist_repos_list is None:
+                continue
+            for repo in dist_repos_list:
+                # In this context, "Prefix" is a path to the repository.
+                repos_list.append(repo['Prefix'])
+
+        return repos_list
+
+    def _get_repository_list(self):
+        """Returns a list of paths to repositories in the current bucket."""
+        supported_repos = self.get_supported_repos()
+        repos_list = []
+        result_list = []
+
+        # Since collecting the list of paths to repositories involves a large
+        # number of S3 requests through the network, it is recommended to use a
+        # thread pool to execute them in parallel (the thread will be idle for a
+        # "long" time, waiting for a response from S3).
+        #
+        # The number of processes = 20 was chosen experimentally.
+        with ThreadPool(processes=20) as pool:
+            for kind in supported_repos['repo_kind']:
+                for series in supported_repos['tarantool_series']:
+                    for dist, dist_description in supported_repos['distrs'].items():
+                        path = ''
+                        base_path = self.s3_settings.get('base_path', '')
+                        if base_path:
+                            path = '/'.join([base_path, kind, series, dist])
+                        else:
+                            path = '/'.join([kind, series, dist])
+                        if dist_description['base'] == 'deb':
+                            result_list.append(
+                                pool.apply_async(self._get_deb_repo_path, (path,))
+                            )
+                        elif dist_description['base'] == 'rpm':
+                            result_list.append(
+                                pool.apply_async(
+                                    self._get_rpm_repo_path,
+                                    (path, dist_description['versions'])
+                                )
+                            )
+                        else:
+                            raise RuntimeError('Unknown repository base: ' +
+                                               dist_description['base'])
+
+            # Collect the information about location of all the
+            # repositories from the bucket together.
+            for res in result_list:
+                repos_list.extend(res.get())
+
+        return repos_list
+
     def get_supported_repos(self):
         """Get description of the currently supported repos."""
         return self.s3_settings['supported_repos']
 
     def sync_all_repos(self):
         """Update the metainformation of all known repositories."""
-        NotImplementedError("sync_all_repos hasn't been implemented yet.")
+        # Get the information about location of all the
+        # repositories from the bucket.
+        repos_to_update = self._get_repository_list()
+
+        # Add the repositories to the unsync list.
+        self.sync_lock.acquire()
+        for repo in repos_to_update:
+            self.unsync_repos.add(repo)
+        self.sync_lock.release()
+
+        # Add additional workers to update metainformation (approximate
+        # number of repositories to be synced ~ 600).
+        # 20 - the number up on the spot. Perhaps it will be corrected later.
+        threads_num = 20
+        with ThreadPool(processes=threads_num) as pool:
+            result_list = []
+            for _ in range(0, threads_num):
+                result_list.append(pool.apply_async(self.sync, (False,)))
+            for res in result_list:
+                # Wait for all additional workers to complete.
+                res.wait()
 
     def sync(self, permanent):
         """Update a metainformation of repositoties from the "unsync_repo" set.
