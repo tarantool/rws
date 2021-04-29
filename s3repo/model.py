@@ -69,7 +69,7 @@ class S3AsyncModel:
 
         # A sync thread is required to update metainformation
         # in updated repositories.
-        self.sync_thread = Thread(target=self.sync)
+        self.sync_thread = Thread(target=self.sync, args=(True,))
         self.sync_thread.daemon = True
         self.sync_thread.start()
 
@@ -190,8 +190,12 @@ class S3AsyncModel:
         """Update the metainformation of all known repositories."""
         NotImplementedError("sync_all_repos hasn't been implemented yet.")
 
-    def sync(self):
-        """Update a metainformation of repositoties from the "unsync_repo" set."""
+    def sync(self, permanent):
+        """Update a metainformation of repositoties from the "unsync_repo" set.
+        permanent(bool) - describes whether the function should process data
+        permanent or whether it can "return" if all current work has been
+        completed.
+        """
         while True:
             if self.unsync_repos:
                 self.sync_lock.acquire()
@@ -216,10 +220,14 @@ class S3AsyncModel:
                         self.sync_lock.acquire()
                         self.unsync_repos.add(sync_repo)
                         self.sync_lock.release()
-            else:
+            elif permanent:
                 # The "unsync_repos" set is empty.
                 # Let's just wait a while.
                 time.sleep(5)
+            else:
+                # This is a temporary "worker" and all current
+                # work has been completed.
+                break
 
     def put_package(self, package):
         """Load the package to S3."""
