@@ -42,7 +42,7 @@ class S3Controller(MethodView):
             raise RuntimeError('Tarantool series "' + path[1] + '"" is not supported.')
         if path[2] not in supported_repos['distrs']:
             raise RuntimeError('Distribution "' + path[2] + '" is not supported.')
-        if path[3] not in supported_repos['distrs'][path[2]]:
+        if path[3] not in supported_repos['distrs'][path[2]]['versions']:
             raise RuntimeError('Distribution version "' + path[3] + '" is not supported.')
 
     @staticmethod

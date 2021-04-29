@@ -29,40 +29,55 @@
         "2.8"
       ],
       "distrs": {
-        "debian": [
-          "bullseye",
-          "buster",
-          "jessie",
-          "stretch"
-        ],
-        "el": [
-          "6",
-          "7",
-          "8"
-        ],
-        "fedora": [
-          "25",
-          "26",
-          "27",
-          "28",
-          "29",
-          "30",
-          "31",
-          "32",
-          "33"
-        ],
-        "opensuse-leap": [
-          "15.1",
-          "15.2"
-        ],
-        "ubuntu": [
-          "bionic",
-          "disco",
-          "eoan",
-          "focal",
-          "trusty",
-          "xenial"
-        ]
+        "debian": {
+          "base": "deb",
+          "versions": [
+            "bullseye",
+            "buster",
+            "jessie",
+            "stretch"
+          ]
+        },
+        "ubuntu": {
+          "base": "deb",
+          "versions": [
+            "bionic",
+            "disco",
+            "eoan",
+            "focal",
+            "trusty",
+            "xenial"
+          ]
+        },
+        "el": {
+          "base": "rpm",
+          "versions": [
+            "6",
+            "7",
+            "8"
+          ]
+        },
+        "fedora": {
+          "base": "rpm",
+          "versions": [
+            "25",
+            "26",
+            "27",
+            "28",
+            "29",
+            "30",
+            "31",
+            "32",
+            "33"
+          ]
+        },
+        "opensuse-leap": {
+          "base": "rpm",
+          "versions": [
+            "15.1",
+            "15.2"
+          ]
+        }
       }
     }
   }
