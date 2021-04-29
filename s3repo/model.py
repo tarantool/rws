@@ -68,61 +68,69 @@ class S3AsyncModel:
         self.sync_thread.start()
 
     @staticmethod
-    def _format_paths(dist_path, dist_version, filename):
+    def _format_paths(dist_path, dist_version, dist_base, filename):
         """Formats the file path and repository path according
         to the filename and distribution information.
-        Returns a tuple (repo_path, path) or None on failure.
+        Returns a tuple (repo_path, path).
         """
         path = ''
         repo_path = ''
-        if re.fullmatch(r'.*\.(x86_64|noarch)\.rpm', filename):
-            # Example of the path for x86_64, noarch rpm repository:
-            # .../live/1.10/fedora/31/x86_64
-            repo_path = '/'.join([
-                dist_path,
-                dist_version,
-                'x86_64'
-            ])
-            # Example of the path to upload rpm files:
-            # .../live/1.10/fedora/31/x86_64/Packages
-            path = '/'.join([
-                repo_path,
-                'Packages',
-                filename
-            ])
-        elif re.fullmatch(r'.*\.src\.rpm', filename):
-            # Example of the path for src.rpm repository:
-            # .../live/1.10/fedora/31/SRPMS
-            repo_path = '/'.join([
-                dist_path,
-                dist_version,
-                'SRPMS'
-            ])
-            # Example of the path to upload src.rpm files:
-            # .../live/1.10/fedora/31/SRPMS/Packages
-            path = '/'.join([
-                repo_path,
-                'Packages',
-                filename
-            ])
-        elif re.fullmatch(r'.*\.(deb|dsc|tar\.xz|tar\.gz)', filename):
-            # https://wiki.debian.org/DebianRepository/Format
-            # Example of the path for deb repository ("archive root"):
-            # .../live/1.10/ubuntu
-            repo_path = dist_path
-            # Example of the path to upload files:
-            # .../live/1.10/ubuntu/pool/disco/main/s/small
-            path = '/'.join([
-                repo_path,
-                'pool',
-                dist_version,
-                'main',
-                filename[:1],
-                filename.partition('_')[0],
-                filename
-            ])
+        file_type_err = 'The "{0}" file does not match the type of files ' +\
+            'used in the {1}-based repositories.'
+        if dist_base == 'rpm':
+            if re.fullmatch(r'.*\.(x86_64|noarch)\.rpm', filename):
+                # Example of the path for x86_64, noarch rpm repository:
+                # .../live/1.10/fedora/31/x86_64
+                repo_path = '/'.join([
+                    dist_path,
+                    dist_version,
+                    'x86_64'
+                ])
+                # Example of the path to upload rpm files:
+                # .../live/1.10/fedora/31/x86_64/Packages
+                path = '/'.join([
+                    repo_path,
+                    'Packages',
+                    filename
+                ])
+            elif re.fullmatch(r'.*\.src\.rpm', filename):
+                # Example of the path for src.rpm repository:
+                # .../live/1.10/fedora/31/SRPMS
+                repo_path = '/'.join([
+                    dist_path,
+                    dist_version,
+                    'SRPMS'
+                ])
+                # Example of the path to upload src.rpm files:
+                # .../live/1.10/fedora/31/SRPMS/Packages
+                path = '/'.join([
+                    repo_path,
+                    'Packages',
+                    filename
+                ])
+            else:
+                raise RuntimeError(file_type_err.format(filename, dist_base))
+        elif dist_base == 'deb':
+            if re.fullmatch(r'.*\.(deb|dsc|tar\.xz|tar\.gz)', filename):
+                # https://wiki.debian.org/DebianRepository/Format
+                # Example of the path for deb repository ("archive root"):
+                # .../live/1.10/ubuntu
+                repo_path = dist_path
+                # Example of the path to upload files:
+                # .../live/1.10/ubuntu/pool/disco/main/s/small
+                path = '/'.join([
+                    repo_path,
+                    'pool',
+                    dist_version,
+                    'main',
+                    filename[:1],
+                    filename.partition('_')[0],
+                    filename
+                ])
+            else:
+                raise RuntimeError(file_type_err.format(filename, dist_base))
         else:
-            return None
+            raise RuntimeError('Unknown repository base: {0}.'.format(dist_base))
 
         return (repo_path, path)
 
@@ -135,17 +143,14 @@ class S3AsyncModel:
             dist_path_list.insert(0, self.s3_settings['base_path'])
 
         dist_path = '/'.join(dist_path_list)
+        dist_base = self.get_supported_repos()['distrs'][package.dist]['base']
 
         # List of repositories where the new package has been uploaded,
         # but the metainformation hasn't been updated yet.
         unsync_repos_local = set()
         for filename, file in package.files.items():
-            repo_path, path = S3AsyncModel._format_paths(dist_path,
-                package.dist_version, filename)
-
-            if repo_path is None:
-                raise RuntimeError('Can\'t to form the path to upload the file "' +
-                    filename + '".')
+            repo_path, path = S3AsyncModel._format_paths(
+                dist_path, package.dist_version, dist_base, filename)
 
             # If a file needs to be uploaded to several repositories:
             # it is uploaded to one of them, and then copied to others.
