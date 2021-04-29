@@ -67,45 +67,6 @@ class S3AsyncModel:
         self.sync_thread.daemon = True
         self.sync_thread.start()
 
-    def get_supported_repos(self):
-        """Get description of the currently supported repos."""
-        return self.s3_settings['supported_repos']
-
-    def sync_all_repos(self):
-        """Update the metainformation of all known repositories."""
-        NotImplementedError("sync_all_repos hasn't been implemented yet.")
-
-    def sync(self):
-        """Update a metainformation of repositoties from the "unsync_repo" set."""
-        while True:
-            if self.unsync_repos:
-                self.sync_lock.acquire()
-                sync_repo = self.unsync_repos.pop()
-                self.sync_lock.release()
-
-                mkrepo_cmd = [
-                    'mkrepo',
-                    '--s3-access-key-id',
-                    str(self.s3_settings['access_key_id']),
-                    '--s3-secret-access-key',
-                    str(self.s3_settings['secret_access_key']),
-                    '--s3-endpoint',
-                    str(self.s3_settings['endpoint_url']),
-                    '--s3-region',
-                    str(self.s3_settings['region']),
-                    's3://' + self.s3_settings['bucket_name'] + '/' + sync_repo
-                ]
-                with sp.Popen(mkrepo_cmd) as mkrepo_ps:
-                    result = mkrepo_ps.wait()
-                    if result != 0:
-                        self.sync_lock.acquire()
-                        self.unsync_repos.add(sync_repo)
-                        self.sync_lock.release()
-            else:
-                # The "unsync_repos" set is empty.
-                # Let's just wait a while.
-                time.sleep(5)
-
     @staticmethod
     def _format_paths(dist_path, dist_version, filename):
         """Formats the file path and repository path according
@@ -207,6 +168,45 @@ class S3AsyncModel:
         self.sync_lock.acquire()
         self.unsync_repos.update(unsync_repos_local)
         self.sync_lock.release()
+
+    def get_supported_repos(self):
+        """Get description of the currently supported repos."""
+        return self.s3_settings['supported_repos']
+
+    def sync_all_repos(self):
+        """Update the metainformation of all known repositories."""
+        NotImplementedError("sync_all_repos hasn't been implemented yet.")
+
+    def sync(self):
+        """Update a metainformation of repositoties from the "unsync_repo" set."""
+        while True:
+            if self.unsync_repos:
+                self.sync_lock.acquire()
+                sync_repo = self.unsync_repos.pop()
+                self.sync_lock.release()
+
+                mkrepo_cmd = [
+                    'mkrepo',
+                    '--s3-access-key-id',
+                    str(self.s3_settings['access_key_id']),
+                    '--s3-secret-access-key',
+                    str(self.s3_settings['secret_access_key']),
+                    '--s3-endpoint',
+                    str(self.s3_settings['endpoint_url']),
+                    '--s3-region',
+                    str(self.s3_settings['region']),
+                    's3://' + self.s3_settings['bucket_name'] + '/' + sync_repo
+                ]
+                with sp.Popen(mkrepo_cmd) as mkrepo_ps:
+                    result = mkrepo_ps.wait()
+                    if result != 0:
+                        self.sync_lock.acquire()
+                        self.unsync_repos.add(sync_repo)
+                        self.sync_lock.release()
+            else:
+                # The "unsync_repos" set is empty.
+                # Let's just wait a while.
+                time.sleep(5)
 
     def put_package(self, package):
         """Load the package to S3."""
