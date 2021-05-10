@@ -8,6 +8,7 @@ from flask.views import MethodView
 
 from helpers.auth_provider import auth_provider
 from s3repo.model import ALLOWED_EXTENSIONS
+from s3repo.model import S3ModelRequestError
 from s3repo.package import Package
 
 
@@ -81,7 +82,10 @@ class S3Controller(MethodView):
 
         try:
             self.model.put_package(package)
-        except RuntimeError as err:
+        except S3ModelRequestError as err:
+            return S3Controller.response_message("Can't upload the package to S3: " +
+                str(err), 400)
+        except Exception as err:
             return S3Controller.response_message("Can't upload the package to S3: " +
                 str(err), 500)
 
