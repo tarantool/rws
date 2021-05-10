@@ -12,6 +12,12 @@ import boto3
 ALLOWED_EXTENSIONS = {'.rpm', '.deb', '.dsc', '.xz', '.gz'}
 
 
+class S3ModelRequestError(Exception):
+    """S3ModelRequestError - exception that is raised when trying to
+    use invalid input data when working with any S3Model.
+    """
+
+
 class S3AsyncModel:
     """S3AsyncModel - model for working with repositories
     on S3 in "Async" mode. "Async" means that it has several
@@ -109,7 +115,8 @@ class S3AsyncModel:
                     filename
                 ])
             else:
-                raise RuntimeError(file_type_err.format(filename, dist_base))
+                raise S3ModelRequestError(file_type_err.format(
+                    filename, dist_base))
         elif dist_base == 'deb':
             if re.fullmatch(r'.*\.(deb|dsc|tar\.xz|tar\.gz)', filename):
                 # https://wiki.debian.org/DebianRepository/Format
@@ -128,7 +135,8 @@ class S3AsyncModel:
                     filename
                 ])
             else:
-                raise RuntimeError(file_type_err.format(filename, dist_base))
+                raise S3ModelRequestError(file_type_err.format(
+                    filename, dist_base))
         else:
             raise RuntimeError('Unknown repository base: {0}.'.format(dist_base))
 
