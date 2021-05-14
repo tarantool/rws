@@ -1,6 +1,7 @@
 """Model for working with the repositories on S3."""
 
 from multiprocessing.pool import ThreadPool
+import os
 import re
 import subprocess as sp
 import time
@@ -337,9 +338,22 @@ class S3AsyncModel:
                     str(self.s3_settings['endpoint_url']),
                     '--s3-region',
                     str(self.s3_settings['region']),
-                    's3://' + self.s3_settings['bucket_name'] + '/' + sync_repo
                 ]
-                with sp.Popen(mkrepo_cmd) as mkrepo_ps:
+
+                # Include the package metainformation signature
+                # if we have a gpg key.
+                env = None
+                if self.s3_settings.get('gpg_sign_key'):
+                    mkrepo_cmd.append('--sign')
+                    env = dict(os.environ,
+                               GPG_SIGN_KEY=self.s3_settings['gpg_sign_key'])
+
+                # Set the path to the repository.
+                mkrepo_cmd.append('s3://{0}/{1}'.format(
+                    self.s3_settings['bucket_name'],
+                    sync_repo))
+
+                with sp.Popen(mkrepo_cmd, env=env) as mkrepo_ps:
                     result = mkrepo_ps.wait()
                     if result != 0:
                         self.sync_lock.acquire()
