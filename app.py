@@ -2,6 +2,8 @@
 
 import json
 import os
+import re
+import subprocess as sp
 
 from flask import Flask
 
@@ -25,6 +27,26 @@ def load_cfg():
     return cfg
 
 
+def add_gpg_key(gpg_key):
+    """Adds the given keys to the keyring."""
+    # Add keys to the keyring.
+    cmd = ['gpg', '--batch', '--import']
+    stdout = None
+    with sp.Popen(cmd, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.STDOUT) as proc:
+        stdout, _ = proc.communicate(input=gpg_key)
+        stdout = stdout.decode('utf-8')
+        if proc.returncode != 0:
+            raise RuntimeError('Can not add gpg key: "{0}".'.format(stdout))
+
+    # Get name of the key from output.
+    match = re.search(r'gpg: key (?P<name>[0-9A-F]{16}): secret key imported',
+                      stdout)
+    if not match:
+        raise RuntimeError('Can not get name of the key.')
+
+    return match.group('name')
+
+
 def update_cfg_by_env(cfg):
     """Update the config with data from environment variables."""
     # Get some configuration parameters from env.
@@ -35,6 +57,12 @@ def update_cfg_by_env(cfg):
     env_model_settings['base_path'] = os.getenv('S3_BASE_PATH')
     env_model_settings['access_key_id'] = os.getenv('S3_ACCESS_KEY')
     env_model_settings['secret_access_key'] = os.getenv('S3_SECRET_KEY')
+    gpg_key_armored = os.getenv('GPG_SIGN_KEY_ARMORED')
+    # GPG_SIGN_KEY_ARMORED stores GPG secret key for signing the repositories
+    # metadata. Our task is to add this key to the system and get its name.
+    if gpg_key_armored:
+        env_model_settings['gpg_sign_key'] = \
+            add_gpg_key(gpg_key_armored.encode('ascii'))
 
     env_common_settings = {}
     env_common_settings['credentials'] = \
