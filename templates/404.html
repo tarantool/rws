@@ -1,0 +1,9 @@
+<html>
+<head>
+    <link rel="stylesheet" href="{{url_for('static', filename='common/css/fileindex.css')}}" type="text/css">
+</head>
+<body>
+  <h1> Error 404! Requested resource doesn't exist. </h1>
+  <a href="{{ url_for('s3_view', subpath='index') }}"><p>Click here</a> to go to the Home Page. </p>
+</body>
+</html>
