@@ -517,7 +517,7 @@ class S3AsyncModel:
 
                 with tempfile.TemporaryDirectory(prefix='.rws_', dir='.') as tmpdirname:
                     mkrepo_cmd = [
-                        'mkrepo',
+                        './third_party/mkrepo/mkrepo.py',
                         '--temp-dir',
                         tmpdirname,
                         '--s3-access-key-id',
