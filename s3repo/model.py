@@ -4,6 +4,7 @@ from multiprocessing.pool import ThreadPool
 import os
 import re
 import subprocess as sp
+import tempfile
 import time
 from threading import Lock
 from threading import Thread
@@ -328,37 +329,40 @@ class S3AsyncModel:
                 sync_repo = self.unsync_repos.pop()
                 self.sync_lock.release()
 
-                mkrepo_cmd = [
-                    'mkrepo',
-                    '--s3-access-key-id',
-                    str(self.s3_settings['access_key_id']),
-                    '--s3-secret-access-key',
-                    str(self.s3_settings['secret_access_key']),
-                    '--s3-endpoint',
-                    str(self.s3_settings['endpoint_url']),
-                    '--s3-region',
-                    str(self.s3_settings['region']),
-                ]
+                with tempfile.TemporaryDirectory(prefix='.rws_', dir='.') as tmpdirname:
+                    mkrepo_cmd = [
+                        'mkrepo',
+                        '--temp-dir',
+                        tmpdirname,
+                        '--s3-access-key-id',
+                        str(self.s3_settings['access_key_id']),
+                        '--s3-secret-access-key',
+                        str(self.s3_settings['secret_access_key']),
+                        '--s3-endpoint',
+                        str(self.s3_settings['endpoint_url']),
+                        '--s3-region',
+                        str(self.s3_settings['region']),
+                    ]
 
-                # Include the package metainformation signature
-                # if we have a gpg key.
-                env = None
-                if self.s3_settings.get('gpg_sign_key'):
-                    mkrepo_cmd.append('--sign')
-                    env = dict(os.environ,
-                               GPG_SIGN_KEY=self.s3_settings['gpg_sign_key'])
+                    # Include the package metainformation signature
+                    # if we have a gpg key.
+                    env = None
+                    if self.s3_settings.get('gpg_sign_key'):
+                        mkrepo_cmd.append('--sign')
+                        env = dict(os.environ,
+                                   GPG_SIGN_KEY=self.s3_settings['gpg_sign_key'])
 
-                # Set the path to the repository.
-                mkrepo_cmd.append('s3://{0}/{1}'.format(
-                    self.s3_settings['bucket_name'],
-                    sync_repo))
+                    # Set the path to the repository.
+                    mkrepo_cmd.append('s3://{0}/{1}'.format(
+                        self.s3_settings['bucket_name'],
+                        sync_repo))
 
-                with sp.Popen(mkrepo_cmd, env=env) as mkrepo_ps:
-                    result = mkrepo_ps.wait()
-                    if result != 0:
-                        self.sync_lock.acquire()
-                        self.unsync_repos.add(sync_repo)
-                        self.sync_lock.release()
+                    with sp.Popen(mkrepo_cmd, env=env) as mkrepo_ps:
+                        result = mkrepo_ps.wait()
+                        if result != 0:
+                            self.sync_lock.acquire()
+                            self.unsync_repos.add(sync_repo)
+                            self.sync_lock.release()
             elif permanent:
                 # The "unsync_repos" set is empty.
                 # Let's just wait a while.
