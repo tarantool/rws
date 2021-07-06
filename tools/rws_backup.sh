@@ -25,9 +25,10 @@ Parameters:
 	                    only a part of the bucket).
 	RWS_BACKUP_DEST     Path to save the backup (examples: /path/to/backup ,
 	                    s3:hb.bizmrg.com/backups-bucket/backup). When using S3
-	                    as the backup destination, the same AWS Access key will
-	                    be used for both the backup source bucket and the backup
-	                    destination bucket.
+	                    as the backup destination, the AWS Access Key can be set
+	                    using AWS_SECRET_ACCESS_KEY and AWS_ACCESS_KEY_ID
+	                    environment variables
+	                    (see https://restic.readthedocs.io/en/latest/040_backup.html).
 EOF
 }
 
