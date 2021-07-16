@@ -86,6 +86,11 @@ Environment variables:
 * `RWS_CFG` - path to a configuration file.
 * `RWS_CREDENTIALS` - authentication credentials in JSON format
   ('{"name": "password_hash"}').
+* `GPG_SIGN_KEY_ARMORED` - gpg key in ASCII armored format.
+  Export the key in ASCII armored format:
+  ```bash
+  gpg --armor --export-secret-keys MYKEYID > mykeys.asc)
+  ```
 * `S3_URL` - URL to access S3 (https://hb.bizmrg.com).
 * `S3_REGION` - region (ru-msk, us-east-2, ...).
 * `S3_BUCKET` - bucket name.
