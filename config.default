@@ -46,7 +46,9 @@
             "eoan",
             "focal",
             "trusty",
-            "xenial"
+            "xenial",
+            "hirsute",
+            "groovy"
           ]
         },
         "el": {
