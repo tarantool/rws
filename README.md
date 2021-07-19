@@ -52,6 +52,15 @@ export FLASK_APP=app.py
 flask run
 ```
 
+Run production server:
+``` bash
+gunicorn --workers 1 --timeout 0 --threads 10 app:app
+```
+The `timeout` parameter should be set to `0`, because the worker can be checked
+by the server only after the application (`app`) has started, but the
+metainformation synchronization of all repositories starts before the
+application and can take a long time in some cases.
+
 ### Usage
 
 * Put package to repository.
