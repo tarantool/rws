@@ -444,6 +444,9 @@ class S3AsyncModel:
                         str(self.s3_settings['region']),
                     ]
 
+                    if self.s3_settings.get('force_sync'):
+                        mkrepo_cmd.append('--force')
+
                     # Set the "Origin", "Label" and "Description" values
                     # that can be used for the deb repository.
                     env = dict(

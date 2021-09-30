@@ -90,11 +90,16 @@ curl -u user_name:password \
 ## Configuration
 
 The configuration is set by the environment variables and configuration file.
+In the case of using an environment variable, if a bool value is expected,
+all values except "0" and "False" will be interpreted as "True". If the
+variable is == "" or is not set, the default will be used.
 
 Environment variables:
 * `RWS_CFG` - path to a configuration file.
 * `RWS_CREDENTIALS` - authentication credentials in JSON format
   ('{"name": "password_hash"}').
+* `RWS_FORCE_SYNC` - skip malformed packages when synchronizing metainformation.
+  Default: `False`.
 * `GPG_SIGN_KEY_ARMORED` - gpg key in ASCII armored format.
   Export the key in ASCII armored format:
   ```bash
