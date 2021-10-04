@@ -53,6 +53,8 @@ class S3AsyncModel:
             - base_path - path inside the bucket to repositories
             - access_key_id - S3 access key ID
             - secret_access_key - S3 secret key
+            - public_read - set public access to files uploaded to S3
+                (True/False)
             - supported_repos - dictionary describing the supported
                 repositories, tarantool version, distributions...
         """
@@ -214,6 +216,11 @@ class S3AsyncModel:
         dist_path = '/'.join(dist_path_list)
         dist_base = self.get_supported_repos()['distrs'][package.dist]['base']
 
+        # Set the arguments of the uploaded files according to the settings.
+        extra_args = {}
+        if self.s3_settings.get('public_read'):
+            extra_args['ACL'] = 'public-read'
+
         # List of repositories where the new package has been uploaded,
         # but the metainformation hasn't been updated yet.
         unsync_repos_local = set()
@@ -227,7 +234,7 @@ class S3AsyncModel:
                 self.bucket.copy(origin_files[filename], path)
             else:
                 obj = self.bucket.Object(path)
-                obj.upload_fileobj(file)
+                obj.upload_fileobj(file, ExtraArgs=extra_args)
                 origin_files[filename] = {
                     'Bucket': self.bucket.name,
                     'Key': path
@@ -446,6 +453,8 @@ class S3AsyncModel:
 
                     if self.s3_settings.get('force_sync'):
                         mkrepo_cmd.append('--force')
+                    if self.s3_settings.get('public_read'):
+                        mkrepo_cmd.append('--s3-public-read')
 
                     # Set the "Origin", "Label" and "Description" values
                     # that can be used for the deb repository.
