@@ -111,6 +111,8 @@ Environment variables:
 * `S3_BASE_PATH` - prefix path inside the bucket.
 * `S3_ACCESS_KEY` - Access Key ID for the account.
 * `S3_SECRET_KEY` - Secret Access Key for the account.
+* `S3_PUBLIC_READ`- set read-only permission on files uploaded
+  to S3 for anonymous users
 
 Configuration file parameters(JSON, for example see `config.default`):
 
