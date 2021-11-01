@@ -49,6 +49,15 @@ def add_gpg_key(gpg_key):
     return match.group('name')
 
 
+def add_gpg_armored_key_to_list(env_name, key, updated_list):
+    """Adds the GPG armored key from the "env_name" environment variable to the
+    "updated_list" with the "key" key.
+    """
+    gpg_key_armored = os.getenv(env_name)
+    if gpg_key_armored:
+        updated_list[key] = add_gpg_key(gpg_key_armored.encode('ascii'))
+
+
 def get_bool_env(env_name, default=False):
     """Return the value of an environment variable as bool (True or False)."""
     env_val = os.getenv(env_name, '')
@@ -73,12 +82,11 @@ def update_cfg_by_env(cfg):
     env_model_settings['secret_access_key'] = os.getenv('S3_SECRET_KEY')
     env_model_settings['public_read'] = get_bool_env('S3_PUBLIC_READ', False)
     env_model_settings['force_sync'] = get_bool_env('RWS_FORCE_SYNC', False)
-    gpg_key_armored = os.getenv('GPG_SIGN_KEY_ARMORED')
+
     # GPG_SIGN_KEY_ARMORED stores GPG secret key for signing the repositories
-    # metadata. Our task is to add this key to the system and get its name.
-    if gpg_key_armored:
-        env_model_settings['gpg_sign_key'] = \
-            add_gpg_key(gpg_key_armored.encode('ascii'))
+    # metadata.
+    add_gpg_armored_key_to_list('GPG_SIGN_KEY_ARMORED', 'gpg_sign_key',
+                                env_model_settings)
 
     env_common_settings = {}
     env_common_settings['credentials'] = \
