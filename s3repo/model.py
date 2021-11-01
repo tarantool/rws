@@ -13,6 +13,8 @@ from threading import Thread
 
 import boto3
 
+from s3repo.repoinfo import RepoInfo
+
 
 ALLOWED_EXTENSIONS = {'.rpm', '.deb', '.dsc', '.xz', '.gz'}
 
@@ -235,6 +237,16 @@ class S3AsyncModel:
 
         return items
 
+    def _get_gpg_key_by_series(self, tarantool_series):
+        """Returns the GPG key ID according to "tarantool_series" of the repository."""
+        gpg_sign_key = ''
+        if tarantool_series == 'modules' and self.s3_settings.get('gpg_modules_sign_key'):
+            gpg_sign_key = self.s3_settings.get('gpg_modules_sign_key')
+        elif self.s3_settings.get('gpg_sign_key'):
+            gpg_sign_key = self.s3_settings.get('gpg_sign_key')
+
+        return gpg_sign_key
+
     def _upload_files(self, package, tarantool_series, origin_files):
         """Upload files to one repo on S3."""
         # self.s3_settings['base_path'] can be None or '', in this case,
@@ -250,6 +262,8 @@ class S3AsyncModel:
         extra_args = {}
         if self.s3_settings.get('public_read'):
             extra_args['ACL'] = 'public-read'
+
+        gpg_sign_key = self._get_gpg_key_by_series(tarantool_series)
 
         # List of repositories where the new package has been uploaded,
         # but the metainformation hasn't been updated yet.
@@ -275,16 +289,17 @@ class S3AsyncModel:
                 # Let's add the repo to the local "unsync_repos" set
                 # and merge it with the global one after the end of
                 # the iteration.
-                unsync_repos_local.add(repo_path)
+                unsync_repos_local.add(RepoInfo(repo_path, gpg_sign_key))
 
         self.sync_lock.acquire()
         self.unsync_repos.update(unsync_repos_local)
         self.sync_lock.release()
 
-    def _get_deb_repo_path(self, base_path):
-        """Returns the path (as list) to a deb-based repository
+    def _get_deb_repo_info(self, base_path, gpg_key):
+        """Returns the RepoInfo list for a deb-based repository
         for updating metainformation with the 'mkrepo' tool.
         base_path(string) - path to the distribution.
+        gpg_key(string) - gpg sign key ID.
         """
 
         # Actually, S3 doesn't use the term directory/path, it simply maps the
@@ -309,16 +324,17 @@ class S3AsyncModel:
 
         # In the case of a deb-base distribution, the meta information about
         # packages in all versions of the distribution is updated together.
-        # So we just return the path to the distribution
-        return [path]
+        # So we just return the information related with distribution.
+        return [RepoInfo(path, gpg_key)]
 
-    def _get_rpm_repo_path(self, base_path, dist_versions):
+    def _get_rpm_repo_info(self, base_path, gpg_key, dist_versions):
         """Returns the list of the paths to the rpm-based reposies
         for updating metainformation with the 'mkrepo' tool.
         base_path(string) - path to the distribution.
         dist_versions(list) - list of the distribution versions.
+        gpg_key(string) - gpg sign key ID.
         """
-        # See the first comment in "_get_deb_repo_path" method.
+        # See the first comment in "_get_deb_repo_info" method.
 
         # In the case of an rpm-based distribution, one distribution version can
         # include several repositories (for example "x86_64" and "SRPM").
@@ -337,7 +353,7 @@ class S3AsyncModel:
                 continue
             for repo in dist_repos_list:
                 # In this context, "Prefix" is a path to the repository.
-                repos_list.append(repo['Prefix'])
+                repos_list.append(RepoInfo(repo['Prefix'], gpg_key))
 
         return repos_list
 
@@ -356,6 +372,7 @@ class S3AsyncModel:
         with ThreadPool(processes=20) as pool:
             for kind in supported_repos['repo_kind']:
                 for series in supported_repos['tarantool_series']:
+                    gpg_key = self._get_gpg_key_by_series(series)
                     for dist, dist_description in supported_repos['distrs'].items():
                         path = ''
                         base_path = self.s3_settings.get('base_path', '')
@@ -365,13 +382,13 @@ class S3AsyncModel:
                             path = '/'.join([kind, series, dist])
                         if dist_description['base'] == 'deb':
                             result_list.append(
-                                pool.apply_async(self._get_deb_repo_path, (path,))
+                                pool.apply_async(self._get_deb_repo_info, (path, gpg_key))
                             )
                         elif dist_description['base'] == 'rpm':
                             result_list.append(
                                 pool.apply_async(
-                                    self._get_rpm_repo_path,
-                                    (path, dist_description['versions'])
+                                    self._get_rpm_repo_info,
+                                    (path, gpg_key, dist_description['versions'])
                                 )
                             )
                         else:
@@ -496,15 +513,15 @@ class S3AsyncModel:
                         MKREPO_DEB_DESCRIPTION='Tarantool DBMS and Tarantool modules')
                     # Include the package metainformation signature
                     # if we have a gpg key.
-                    if self.s3_settings.get('gpg_sign_key'):
+                    if sync_repo.sign_key:
                         mkrepo_cmd.append('--sign')
                         env = dict(env,
-                                   GPG_SIGN_KEY=self.s3_settings['gpg_sign_key'])
+                                   GPG_SIGN_KEY=sync_repo.sign_key)
 
                     # Set the path to the repository.
                     mkrepo_cmd.append('s3://{0}/{1}'.format(
                         self.s3_settings['bucket_name'],
-                        sync_repo))
+                        sync_repo.path))
 
                     with sp.Popen(mkrepo_cmd, env=env) as mkrepo_ps:
                         result = mkrepo_ps.wait()
@@ -512,9 +529,9 @@ class S3AsyncModel:
                             self.sync_lock.acquire()
                             self.unsync_repos.add(sync_repo)
                             self.sync_lock.release()
-                            logging.warning('Synchronization failed: ' + sync_repo)
+                            logging.warning('Synchronization failed: ' + sync_repo.path)
                         else:
-                            logging.info('Metainformation has been synced: ' + sync_repo)
+                            logging.info('Metainformation has been synced: ' + sync_repo.path)
             elif permanent:
                 # The "unsync_repos" set is empty.
                 # Let's just wait a while.

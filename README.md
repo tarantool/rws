@@ -115,7 +115,10 @@ Environment variables:
   ('{"name": "password_hash"}').
 * `RWS_FORCE_SYNC` - skip malformed packages when synchronizing metainformation.
   Default: `False`.
-* `GPG_SIGN_KEY_ARMORED` - gpg key in ASCII armored format.
+* `GPG_SIGN_KEY_ARMORED` - gpg key in ASCII armored format to sign tarantool
+  repositories.
+* `GPG_MODULES_SIGN_KEY_ARMORED` - gpg key in ASCII armored format to sign
+  "modules" repository.
   Export the key in ASCII armored format:
   ```bash
   gpg --armor --export-secret-keys MYKEYID > mykeys.asc)
