@@ -87,6 +87,10 @@ def update_cfg_by_env(cfg):
     # metadata.
     add_gpg_armored_key_to_list('GPG_SIGN_KEY_ARMORED', 'gpg_sign_key',
                                 env_model_settings)
+    # GPG_MODULES_SIGN_KEY_ARMORED stores GPG secret key for signing the
+    # "modules" repository metadata.
+    add_gpg_armored_key_to_list('GPG_MODULES_SIGN_KEY_ARMORED',
+                                'gpg_modules_sign_key', env_model_settings)
 
     env_common_settings = {}
     env_common_settings['credentials'] = \

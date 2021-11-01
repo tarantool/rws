@@ -6,6 +6,7 @@
         "release"
       ],
       "tarantool_series": [
+        "modules",
         "enabled",
         "1.10",
         "2.1",
