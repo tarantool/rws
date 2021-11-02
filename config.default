@@ -3,11 +3,13 @@
     "supported_repos": {
       "repo_kind": [
         "live",
+        "pre-release",
         "release"
       ],
       "tarantool_series": [
         "modules",
         "enabled",
+        "series-2",
         "1.10",
         "2.1",
         "2.2",
