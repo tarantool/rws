@@ -132,7 +132,7 @@ def server_prepare():
     # Configure S3 backend.
     s3_model = S3AsyncModel(cfg['model'])
     logging.info('Synchronizing metainformation of repositories...')
-    s3_model.sync_all_repos()
+    # s3_model.sync_all_repos()
 
     # Needed to cache static files on client for one hour.
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600
