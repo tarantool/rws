@@ -38,6 +38,8 @@ class S3View(View):
         # Make size human readable.
         readable_items = []
         for item in items:
+            if item.Name in ['check', 'check_live', 'check_release', 'staging']:
+                continue
             if item.Size != '':
                 item = item._replace(Size=S3View._readable_size(item.Size))
             readable_items.append(item)
