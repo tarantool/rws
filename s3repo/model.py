@@ -85,20 +85,19 @@ class S3AsyncModel:
     def _format_paths(dist_path, dist_version, dist_base, filename, product):
         """Formats the file path and repository path according
         to the filename and distribution information.
-        Returns a tuple (repo_path, path).
+        Returns an array of tuples (repo_path, path).
         """
-        path = ''
-        repo_path = ''
+        result = []
         file_type_err = 'The "{0}" file does not match the type of files ' +\
             'used in the {1}-based repositories.'
         if dist_base == 'rpm':
-            if re.fullmatch(r'.*\.(x86_64|noarch)\.rpm', filename):
-                # Example of the path for x86_64, noarch rpm repository:
+            if re.fullmatch(r'.*\.(x86_64|aarch64)\.rpm', filename):
+                # Example of the path for x86_64 rpm repository:
                 # .../live/1.10/fedora/31/x86_64
                 repo_path = '/'.join([
                     dist_path,
                     dist_version,
-                    'x86_64'
+                    re.match(r'.*\.(?P<arch>(x86_64|aarch64))\.rpm', filename).group('arch')
                 ])
                 # Example of the path to upload rpm files:
                 # .../live/1.10/fedora/31/x86_64/Packages
@@ -107,6 +106,26 @@ class S3AsyncModel:
                     'Packages',
                     filename
                 ])
+
+                result.append((repo_path, path))
+            elif re.fullmatch(r'.*\.noarch\.rpm', filename):
+                # The "noarch" package must be uploaded to all supported architectures.
+                supported_arches = ['x86_64', 'aarch64']
+
+                for arch in supported_arches:
+                    repo_path = '/'.join([
+                        dist_path,
+                        dist_version,
+                        arch
+                    ])
+
+                    path = '/'.join([
+                        repo_path,
+                        'Packages',
+                        filename
+                    ])
+
+                    result.append((repo_path, path))
             elif re.fullmatch(r'.*\.src\.rpm', filename):
                 # Example of the path for src.rpm repository:
                 # .../live/1.10/fedora/31/SRPMS
@@ -122,6 +141,8 @@ class S3AsyncModel:
                     'Packages',
                     filename
                 ])
+
+                result.append((repo_path, path))
             else:
                 raise S3ModelRequestError(file_type_err.format(
                     filename, dist_base))
@@ -149,13 +170,15 @@ class S3AsyncModel:
                     product,
                     filename
                 ])
+
+                result.append((repo_path, path))
             else:
                 raise S3ModelRequestError(file_type_err.format(
                     filename, dist_base))
         else:
             raise RuntimeError('Unknown repository base: {0}.'.format(dist_base))
 
-        return (repo_path, path)
+        return result
 
     @staticmethod
     def _objects_to_items(objects):
@@ -232,26 +255,27 @@ class S3AsyncModel:
         # but the metainformation hasn't been updated yet.
         unsync_repos_local = set()
         for filename, file in package.files.items():
-            repo_path, path = S3AsyncModel._format_paths(dist_path, package.dist_version,
-                                                         dist_base, filename, package.product)
+            path_list = S3AsyncModel._format_paths(dist_path, package.dist_version,
+                                                   dist_base, filename, package.product)
 
-            # If a file needs to be uploaded to several repositories:
-            # it is uploaded to one of them, and then copied to others.
-            if filename in origin_files:
-                self.bucket.copy(origin_files[filename], path)
-            else:
-                obj = self.bucket.Object(path)
-                obj.upload_fileobj(file, ExtraArgs=extra_args)
-                origin_files[filename] = {
-                    'Bucket': self.bucket.name,
-                    'Key': path
-                }
+            for repo_path, path in path_list:
+                # If a file needs to be uploaded to several repositories:
+                # it is uploaded to one of them, and then copied to others.
+                if filename in origin_files:
+                    self.bucket.copy(origin_files[filename], path)
+                else:
+                    obj = self.bucket.Object(path)
+                    obj.upload_fileobj(file, ExtraArgs=extra_args)
+                    origin_files[filename] = {
+                        'Bucket': self.bucket.name,
+                        'Key': path
+                    }
 
-            # Several files can be uploaded to the same repo.
-            # Let's add the repo to the local "unsync_repos" set
-            # and merge it with the global one after the end of
-            # the iteration..
-            unsync_repos_local.add(repo_path)
+                # Several files can be uploaded to the same repo.
+                # Let's add the repo to the local "unsync_repos" set
+                # and merge it with the global one after the end of
+                # the iteration.
+                unsync_repos_local.add(repo_path)
 
         self.sync_lock.acquire()
         self.unsync_repos.update(unsync_repos_local)
