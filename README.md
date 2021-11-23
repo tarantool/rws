@@ -76,6 +76,11 @@ application and can take a long time in some cases.
     * `dist` - distribution (fedora, ubuntu ...).
     * `dist_ver` - destribution version (30, 31 ...).
 
+  To upload a package to the deb repository, necessary additionaly specify the
+  "product" form. The "product" form is used to place package files in
+  deb repositories
+  (`.../release/series-2/ubuntu/pool/focal/main/p/product_name/...`).
+
   Example:
 ``` bash
 curl -u user_name:password \
@@ -85,6 +90,16 @@ curl -u user_name:password \
 
 {"message":"OK"}
 
+curl \
+-u login:password \
+-F 'product=tarantool-smtp' \
+-F 'tarantool-smtp_0.0.4.0-1_amd64.deb=@/home/leonid/Downloads/tarantool-smtp_0.0.4.0-1_amd64.deb' \
+-F 'tarantool-smtp_0.0.4.0-1.debian.tar.xz=@/home/leonid/Downloads/tarantool-smtp_0.0.4.0-1.debian.tar.xz' \
+-F 'tarantool-smtp_0.0.4.0-1.dsc=@/home/leonid/Downloads/tarantool-smtp_0.0.4.0-1.dsc' \
+-F 'tarantool-smtp_0.0.4.0.orig.tar.xz=@/home/leonid/Downloads/tarantool-smtp_0.0.4.0.orig.tar.xz' \
+--request PUT 127.0.0.1:5000/release/2.8/ubuntu/focal
+
+{"message":"OK"}
 ```
 
 ## Configuration

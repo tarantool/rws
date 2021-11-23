@@ -13,6 +13,9 @@ class Package:
         self.tarantool_series = ''
         # Repo kind (live, release...).
         self.repo_kind = ''
+        # The name of the product to be used in the deb repositories.
+        # Example: .../release/series-2/ubuntu/pool/focal/main/p/product_name/...
+        self.product = ''
         # Files to upload.
         self.files = {}
 

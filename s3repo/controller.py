@@ -60,6 +60,7 @@ class S3Controller(MethodView):
         to upload it to S3 using S3Model.
         """
         package = Package()
+        package.product = request.form.get('product', '')
         for _, file in request.files.items():
             if not S3Controller.check_filename(file.filename):
                 msg = 'Invalid filename. Allowed file extensions: ' +\

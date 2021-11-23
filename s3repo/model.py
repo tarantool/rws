@@ -82,7 +82,7 @@ class S3AsyncModel:
         self.sync_thread.start()
 
     @staticmethod
-    def _format_paths(dist_path, dist_version, dist_base, filename):
+    def _format_paths(dist_path, dist_version, dist_base, filename, product):
         """Formats the file path and repository path according
         to the filename and distribution information.
         Returns a tuple (repo_path, path).
@@ -126,6 +126,13 @@ class S3AsyncModel:
                 raise S3ModelRequestError(file_type_err.format(
                     filename, dist_base))
         elif dist_base == 'deb':
+            if not product:
+                error_msg = ('The "product" form is absent in request.'\
+                             + ' The "product" form is used to place '\
+                             + ' package files in deb repositories.'\
+                             + ' Example:'\
+                             + ' .../release/series-2/ubuntu/pool/focal/main/p/product_name/...')
+                raise S3ModelRequestError(error_msg)
             if re.fullmatch(r'.*\.(deb|dsc|tar\.xz|tar\.gz)', filename):
                 # https://wiki.debian.org/DebianRepository/Format
                 # Example of the path for deb repository ("archive root"):
@@ -138,8 +145,8 @@ class S3AsyncModel:
                     'pool',
                     dist_version,
                     'main',
-                    filename[:1],
-                    filename.partition('_')[0],
+                    product[:1],
+                    product,
                     filename
                 ])
             else:
@@ -225,8 +232,8 @@ class S3AsyncModel:
         # but the metainformation hasn't been updated yet.
         unsync_repos_local = set()
         for filename, file in package.files.items():
-            repo_path, path = S3AsyncModel._format_paths(
-                dist_path, package.dist_version, dist_base, filename)
+            repo_path, path = S3AsyncModel._format_paths(dist_path, package.dist_version,
+                                                         dist_base, filename, package.product)
 
             # If a file needs to be uploaded to several repositories:
             # it is uploaded to one of them, and then copied to others.
