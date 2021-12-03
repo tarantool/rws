@@ -1,0 +1,59 @@
+name: Upload packages to RWS
+
+description:
+  Upload packages to RWS for delivering them to repositories based on S3 storage
+
+inputs:
+  endpoint:
+    description: The RWS endpoint URL
+    required: true
+
+  auth:
+    description: The RWS auth like <user>:<password>
+    required: true
+
+  product:
+    description: The name of the product for which packages are uploaded to RWS
+    required: false
+
+  pkg-dir:
+    description: The directory path where packages to upload are located
+    default: ./build
+    required: false
+
+  retry:
+    description: The number of upload request retries if a problem occurs
+    default: '5'
+    required: false
+
+  retry-delay:
+    description: The wait time between retries (in seconds)
+    default: '5'
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - run: |
+        CURL_CMD="curl \
+          --location \
+          --fail \
+          --silent \
+          --show-error \
+          --retry ${{ inputs.retry }} \
+          --retry-delay ${{ inputs.retry-delay }} \
+          --request PUT ${{ inputs.endpoint }} \
+          --user ${{ inputs.auth }}"
+
+        if [ -n "${{ inputs.product }}" ]; then
+          CURL_CMD+=" --form product=${{ inputs.product }}"
+        fi
+
+        for f in $(ls -I '*build*' -I '*.changes' ${{ inputs.pkg-dir }}); do
+          CURL_CMD+=" --form $(basename ${f})=@${{ inputs.pkg-dir }}/${f}"
+        done
+
+        echo ${CURL_CMD}
+
+        ${CURL_CMD}
+      shell: bash
