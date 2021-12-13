@@ -147,10 +147,10 @@ class S3AsyncModel:
                     filename, dist_base))
         elif dist_base == 'deb':
             if not product:
-                error_msg = ('The "product" form is absent in request.'\
-                             + ' The "product" form is used to place '\
-                             + ' package files in deb repositories.'\
-                             + ' Example:'\
+                error_msg = ('The "product" form is absent in request.'
+                             + ' The "product" form is used to place '
+                             + ' package files in deb repositories.'
+                             + ' Example:'
                              + ' .../release/series-2/ubuntu/pool/focal/main/p/product_name/...')
                 raise S3ModelRequestError(error_msg)
             if re.fullmatch(r'.*\.(deb|dsc|tar\.xz|tar\.gz)', filename):
@@ -408,7 +408,7 @@ class S3AsyncModel:
         # subdiectories located only in directory specified by
         # 'abs_path'.
         #
-        # See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.list_objects_v2
+        # See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.list_objects_v2  # NOQA
         # for more detaied description.
         list_parameters = {'Bucket': self.bucket.name,
                            'Delimiter': '/',
@@ -566,7 +566,7 @@ class S3AsyncModel:
         # subdiectories located only in directory specified by
         # 'abs_path'.
         #
-        # See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.list_objects_v2
+        # See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.list_objects_v2  # NOQA
         # for more detaied description.
         list_parameters = {'Bucket': self.bucket.name,
                            'Delimiter': '/',
@@ -581,7 +581,7 @@ class S3AsyncModel:
     def get_file(self, path):
         """Get a file from S3 as a "StreamingBody" object.
         See https://botocore.amazonaws.com/v1/documentation/api/latest/reference/response.html#botocore.response.StreamingBody
-        """
+        """  # NOQA
 
         try:
             # We suppose that files which we deal with are not
@@ -595,7 +595,7 @@ class S3AsyncModel:
 
         # "Body" is a data or a requested file itself.
         #
-        # See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.get_object
+        # See https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.get_object  # NOQA
         # for more detaied description.
         return response.get('Body')
 
