@@ -1,18 +1,17 @@
 """Model for working with the repositories on S3."""
 
-from collections import namedtuple
 import logging
-from multiprocessing.pool import ThreadPool
 import os
 import re
 import subprocess as sp
 import tempfile
 import time
+from collections import namedtuple
+from multiprocessing.pool import ThreadPool
 from threading import Lock
 from threading import Thread
 
 import boto3
-
 
 ALLOWED_EXTENSIONS = {'.rpm', '.deb', '.dsc', '.xz', '.gz'}
 

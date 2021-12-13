@@ -1,5 +1,6 @@
 """Description of the uploaded / downloaded package."""
 
+
 class Package:
     """Description of the uploaded / downloaded package."""
 
