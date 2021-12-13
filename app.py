@@ -9,8 +9,8 @@ import subprocess as sp
 from flask import Flask
 
 from helpers.auth_provider import auth_provider
-from s3repo.model import S3AsyncModel
 from s3repo.controller import S3Controller
+from s3repo.model import S3AsyncModel
 from s3repo.view import S3View
 
 

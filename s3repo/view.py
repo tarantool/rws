@@ -2,8 +2,8 @@
 
 import os
 
-from flask import render_template
 from flask import Response
+from flask import render_template
 from flask import request
 from flask.views import View
 
