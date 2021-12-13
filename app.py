@@ -142,12 +142,13 @@ def server_prepare():
     # Set the controller to work with S3.
     s3_controller = S3Controller.as_view('s3_controller', s3_model)
     app.add_url_rule('/<path:subpath>', view_func=s3_controller,
-        methods=['PUT', 'POST', 'DELETE'])
+                     methods=['PUT', 'POST', 'DELETE'])
 
     # Set the view to work with S3.
     s3_view = S3View.as_view('s3_view', s3_model)
     app.add_url_rule('/', view_func=s3_view, methods=['GET'])
     app.add_url_rule('/<path:subpath>', view_func=s3_view, methods=['GET'])
+
 
 # It is a good practice to configure logging
 # before creating the application object.

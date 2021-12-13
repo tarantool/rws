@@ -24,7 +24,7 @@ class S3Controller(MethodView):
     def check_filename(filename):
         """Checks if the filename corresponds the model requirements."""
         if filename == '' or not ('.' in filename and
-                os.path.splitext(filename)[1] in ALLOWED_EXTENSIONS):
+                                  os.path.splitext(filename)[1] in ALLOWED_EXTENSIONS):
             return False
 
         return True
@@ -96,4 +96,4 @@ class S3Controller(MethodView):
     def delete(self, subpath):
         """Delete the file or Package according to the "subpath" path."""
         return S3Controller.response_message('Delete has not yet been implemented.',
-            501)
+                                             501)

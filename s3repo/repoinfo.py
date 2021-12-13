@@ -1,5 +1,6 @@
 """Information about repository."""
 
+
 class RepoInfo:
     """Information about repository."""
 
