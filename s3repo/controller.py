@@ -73,6 +73,26 @@ class S3Controller(MethodView):
         logging.info(msg)
         return S3Controller.response_message('OK', 201)
 
+    @auth_provider.login_required
+    def post(self, subpath):
+        """Update metainformation of the repository."""
+        try:
+            repo_annotation = RepoAnnotation(subpath, self.model.get_supported_repos())
+        except RuntimeError as err:
+            logging.warning(str(err))
+            return S3Controller.response_message(str(err), 400)
+
+        try:
+            self.model.update_repo(repo_annotation)
+        except Exception as err:
+            msg = "Can't update repository: " + str(err)
+            logging.warning(msg)
+            return S3Controller.response_message(msg, 500)
+
+        msg = "Repository (%s) set to queue for update." % (subpath)
+        logging.info(msg)
+        return S3Controller.response_message('OK', 200)
+
     def delete(self, subpath):
         """Delete the file or Package according to the "subpath" path."""
         return S3Controller.response_message('Delete has not yet been implemented.',

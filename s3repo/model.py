@@ -451,6 +451,33 @@ class S3AsyncModel:
         """Get description of the currently supported repos."""
         return self.s3_settings['supported_repos']
 
+    def update_repo(self, repo_annotation):
+        """Update all repositories according to the "repository annotation"."""
+        repo_list = []
+
+        dist_path = os.path.join(self.s3_settings.get('base_path', ''),
+                                 repo_annotation.repo_kind,
+                                 repo_annotation.tarantool_series,
+                                 repo_annotation.dist)
+
+        dist_base = self.get_supported_repos()['distrs'][repo_annotation.dist]['base']
+        gpg_key = self._get_gpg_key_by_series(repo_annotation.tarantool_series)
+
+        if dist_base == 'rpm':
+            repo_list = self._get_rpm_repo_info(dist_path, gpg_key, [repo_annotation.dist_version])
+        elif dist_base == 'deb':
+            repo_list = self._get_deb_repo_info(dist_path, gpg_key)
+        else:
+            raise RuntimeError('Unknown repository base: {0}.'.format(dist_base))
+
+        if not repo_list:
+            raise RuntimeError("Repository {0} doesn't exists".format(str(repo_annotation)))
+
+        # Add the repositories to the unsync list.
+        self.sync_lock.acquire()
+        self.unsync_repos.update(repo_list)
+        self.sync_lock.release()
+
     def sync_all_repos(self):
         """Update the metainformation of all known repositories."""
         # Get the information about location of all the
