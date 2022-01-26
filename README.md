@@ -102,6 +102,19 @@ curl \
 {"message":"OK"}
 ```
 
+* Update repository metainformation without uploading a package.
+
+  The HTTP `POST` method is used to update repository metainformation
+  without uploading a package. URL describes a path to the repository
+  in the same format as the package upload.
+
+  Example:
+```bash
+curl \
+-u user_name:password \
+--request POST 127.0.0.1:5000/release/2.8/ubuntu/focal
+```
+
 ## Configuration
 
 The configuration is set by the environment variables and configuration file.
