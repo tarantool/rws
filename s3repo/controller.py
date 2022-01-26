@@ -11,6 +11,7 @@ from helpers.auth_provider import auth_provider
 from s3repo.model import ALLOWED_EXTENSIONS
 from s3repo.model import S3ModelRequestError
 from s3repo.package import Package
+from s3repo.repoinfo import RepoAnnotation
 
 
 class S3Controller(MethodView):
@@ -27,25 +28,6 @@ class S3Controller(MethodView):
             return False
 
         return True
-
-    @staticmethod
-    def check_path(path, supported_repos):
-        """Checks if the given distribution is supported for
-        uploading packages.
-        """
-        # Correct path = repo_kind/tarantool_series/dist/dist_ver
-        # Example: live/1.10/el/7
-        if len(path) != 4:
-            raise RuntimeError('Invalid URL.')
-
-        if path[0] not in supported_repos['repo_kind']:
-            raise RuntimeError('Repo kind "' + path[0] + '" is not supported.')
-        if path[1] not in supported_repos['tarantool_series']:
-            raise RuntimeError('Tarantool series "' + path[1] + '"" is not supported.')
-        if path[2] not in supported_repos['distrs']:
-            raise RuntimeError('Distribution "' + path[2] + '" is not supported.')
-        if path[3] not in supported_repos['distrs'][path[2]]['versions']:
-            raise RuntimeError('Distribution version "' + path[3] + '" is not supported.')
 
     @staticmethod
     def response_message(message, status):
@@ -70,19 +52,11 @@ class S3Controller(MethodView):
 
             package.add_file(file.filename, file)
 
-        # Parse URL.
-        path_list = subpath.split('/')
         try:
-            S3Controller.check_path(path_list, self.model.get_supported_repos())
+            package.repo_annotation = RepoAnnotation(subpath, self.model.get_supported_repos())
         except RuntimeError as err:
             logging.warning(str(err))
             return S3Controller.response_message(str(err), 400)
-
-        # Fill in the information about the package distribution.
-        package.repo_kind = path_list[0]
-        package.tarantool_series = path_list[1]
-        package.dist = path_list[2]
-        package.dist_version = path_list[3]
 
         try:
             self.model.put_package(package)
