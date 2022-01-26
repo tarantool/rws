@@ -47,6 +47,12 @@ class RepoAnnotation:
         # Version of distribution (trusty, xenial, bionic ...).
         self.dist_version = path_list[3]
 
+    def __str__(self):
+        return '/'.join(self.repo_kind,
+                        self.tarantool_series,
+                        self.dist,
+                        self.dist_version)
+
     @staticmethod
     def check_path(path, supported_repos):
         """Checks if the given distribution is supported for
