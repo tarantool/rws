@@ -251,12 +251,16 @@ class S3AsyncModel:
         """Upload files to one repo on S3."""
         # self.s3_settings['base_path'] can be None or '', in this case,
         # you do not need to add it to the path.
-        dist_path_list = [package.repo_kind, tarantool_series, package.dist]
+        dist_path_list = [
+            package.repo_annotation.repo_kind,
+            tarantool_series,
+            package.repo_annotation.dist
+        ]
         if self.s3_settings.get('base_path', ''):
             dist_path_list.insert(0, self.s3_settings['base_path'])
 
         dist_path = '/'.join(dist_path_list)
-        dist_base = self.get_supported_repos()['distrs'][package.dist]['base']
+        dist_base = self.get_supported_repos()['distrs'][package.repo_annotation.dist]['base']
 
         # Set the arguments of the uploaded files according to the settings.
         extra_args = {}
@@ -269,7 +273,7 @@ class S3AsyncModel:
         # but the metainformation hasn't been updated yet.
         unsync_repos_local = set()
         for filename, file in package.files.items():
-            path_list = S3AsyncModel._format_paths(dist_path, package.dist_version,
+            path_list = S3AsyncModel._format_paths(dist_path, package.repo_annotation.dist_version,
                                                    dist_base, filename, package.product)
 
             for repo_path, path in path_list:
@@ -545,10 +549,10 @@ class S3AsyncModel:
     def put_package(self, package):
         """Load the package to S3."""
         tarantool_series_to_upload = []
-        if package.tarantool_series == 'enabled':
+        if package.repo_annotation.tarantool_series == 'enabled':
             tarantool_series_to_upload = self.get_supported_repos()['enabled']
         else:
-            tarantool_series_to_upload.append(package.tarantool_series)
+            tarantool_series_to_upload.append(package.repo_annotation.tarantool_series)
 
         # Files already uploaded to S3.
         # Information from this dict is used to copy a file from
