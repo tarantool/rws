@@ -1,21 +1,25 @@
 """View for working with the repositories on S3."""
 
 import os
+from typing import List
 
 from flask import Response
 from flask import render_template
 from flask import request
 from flask.views import View
 
+from s3repo.model import Item
+from s3repo.model import S3AsyncModel
+
 
 class S3View(View):
     """View for working with S3 according to the REST model."""
 
-    def __init__(self, model):
+    def __init__(self, model: S3AsyncModel) -> None:
         self.model = model
 
     @staticmethod
-    def _readable_size(size):
+    def _readable_size(size: float) -> str:
         """Convert "size" (number of bytes) into a readable
         string.
         """
@@ -27,30 +31,32 @@ class S3View(View):
                 return readable_size
             size /= 1024.0
 
-        return "%3.1f B" % (size)
+        return "%3.1f B" % size
 
     @staticmethod
-    def _get_directory(path, items):
+    def _get_directory(path: str, items: List) -> render_template:
         """Display directory content as a HTML page."""
         displayed_path = path
         parent_path = '/'.join(path.split('/')[:-2])
 
         # Make size human readable.
-        readable_items = []
+        readable_items: List[Item] = []
         for item in items:
             if item.Size != '':
                 item = item._replace(Size=S3View._readable_size(item.Size))
             readable_items.append(item)
 
-        list_parameters = {'displayed_path': '/' + displayed_path,
-                           'path': path,
-                           'parent_path': parent_path,
-                           'items': readable_items}
+        list_parameters = {
+            'displayed_path': '/' + displayed_path,
+            'path': path,
+            'parent_path': parent_path,
+            'items': readable_items
+        }
 
         return render_template('index.html', **list_parameters)
 
     @staticmethod
-    def _get_file(path, response):
+    def _get_file(path: str, response) -> Response:
         """Download a file to user's machine."""
         filename = path.split('/')[-1]
 
@@ -58,9 +64,9 @@ class S3View(View):
             response.read(),
             mimetype='application/octet-stream',
             headers={"Content-Disposition": "attachment; filename=" + filename}
-            )
+        )
 
-    def dispatch_request(self, subpath='/'):
+    def dispatch_request(self, subpath='/') -> Response:
         """Show a directory or download a file according to the
         "subpath" path.
         """

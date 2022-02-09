@@ -1,4 +1,7 @@
 """Information about repository."""
+from typing import Any
+from typing import Dict
+from typing import List
 
 
 class RepoInfo:
@@ -33,7 +36,7 @@ class RepoAnnotation:
     view. And in fact, it can include more than one repository.
     """
 
-    def __init__(self, path, supported_repos):
+    def __init__(self, path: str, supported_repos: Dict[str, str]) -> None:
         # Parse path.
         path_list = path.split('/')
         RepoAnnotation.check_path(path_list, supported_repos)
@@ -48,14 +51,14 @@ class RepoAnnotation:
         # Version of distribution (trusty, xenial, bionic ...).
         self.dist_version = path_list[3]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return '/'.join(self.repo_kind,
                         self.tarantool_series,
                         self.dist,
                         self.dist_version)
 
     @staticmethod
-    def check_path(path, supported_repos):
+    def check_path(path: List[str], supported_repos: Dict[str, Any]) -> None:
         """Checks if the given distribution is supported for
         uploading packages.
         """

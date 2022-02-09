@@ -6,16 +6,40 @@ import re
 import subprocess as sp
 import tempfile
 import time
-from collections import namedtuple
+from multiprocessing.pool import ApplyResult
 from multiprocessing.pool import ThreadPool
 from threading import Lock
 from threading import Thread
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import NamedTuple
+from typing import Optional
+from typing import Set
+from typing import Tuple
 
 import boto3
+from S3 import Package
 
+from s3repo.repoinfo import RepoAnnotation
 from s3repo.repoinfo import RepoInfo
 
 ALLOWED_EXTENSIONS = {'.rpm', '.deb', '.dsc', '.xz', '.gz'}
+
+
+class Item(NamedTuple):
+    """Item is a tuple with metainfo of file or directory.
+
+    Fields format:
+    +------+------+--------------+------+
+    | Type | Name | LastModified | Size |
+    +------+------+--------------+------+
+    """
+
+    Type: str = ''
+    Name: str = ''
+    LastModified: str = ''
+    Size: str = ''
 
 
 class S3ModelRequestError(Exception):
@@ -39,7 +63,7 @@ class S3AsyncModel:
     will be used to update metainformation.
     """
 
-    def __init__(self, s3_settings):
+    def __init__(self, s3_settings: Dict[str, str]) -> None:
         """When the "S3AsyncModel" object is created, a resource
         representing the S3 segment is created and the synchronization
         thread is started. A sync thread is required to update
@@ -74,7 +98,7 @@ class S3AsyncModel:
         # needs to be updated. All actions with "unsync_repos" must
         # be done under the "sync_lock".
         self.sync_lock = Lock()
-        self.unsync_repos = set()
+        self.unsync_repos: Set[RepoInfo] = set()
 
         # A sync thread is required to update metainformation
         # in updated repositories.
@@ -83,14 +107,15 @@ class S3AsyncModel:
         self.sync_thread.start()
 
     @staticmethod
-    def _format_paths(dist_path, dist_version, dist_base, filename, product):
+    def _format_paths(dist_path: str, dist_version: str, dist_base: str,
+                      filename: str, product: str) -> List[Tuple[str, str]]:
         """Formats the file path and repository path according
         to the filename and distribution information.
         Returns an array of tuples (repo_path, path).
         """
-        result = []
+        result: List[Tuple[str, str]] = []
         file_type_err = 'The "{0}" file does not match the type of files ' +\
-            'used in the {1}-based repositories.'
+                        'used in the {1}-based repositories.'
         if dist_base == 'rpm':
             if re.fullmatch(r'.*\.(x86_64|aarch64)\.rpm', filename):
                 # Example of the path for x86_64 rpm repository:
@@ -177,25 +202,17 @@ class S3AsyncModel:
                 raise S3ModelRequestError(file_type_err.format(
                     filename, dist_base))
         else:
-            raise RuntimeError('Unknown repository base: {0}.'.format(dist_base))
+            raise RuntimeError(
+                'Unknown repository base: {0}.'.format(dist_base))
 
         return result
 
     @staticmethod
-    def _objects_to_items(objects):
+    def _objects_to_items(objects: Dict[str, Any]) -> List[Item]:
         """Formation of a list of resources (with metainformation)
         located at the specified path on S3 from the information
         received through the "boto3" API.
         """
-
-        fields = ['Type', 'Name', 'LastModified', 'Size']
-
-        # "Item" is tuple with metainfo of file or directory.
-        # Fields format:
-        # +------+------+--------------+------+
-        # | Type | Name | LastModified | Size |
-        # +------+------+--------------+------+
-        Item = namedtuple('Item', fields, defaults=['', '', '', ''])
 
         # "KeyCount" is the number of keys returned with this
         # request. KeyCount is 1 for emtpy directory (this folder
@@ -211,7 +228,7 @@ class S3AsyncModel:
         # each distinct key prefix containing the delimiter in a
         # "CommonPrefixes" element i.e. list of subdirectories.
         common_prefixes = objects.get('CommonPrefixes') or {}
-        items = []
+        items: List[Item] = []
         for prefix in common_prefixes:
             directory_name = prefix.get('Prefix').split('/')[-2]
             item = Item('directory', directory_name)
@@ -228,7 +245,8 @@ class S3AsyncModel:
             # objects.
             if not file_name:
                 continue
-            last_modified = file_meta.get('LastModified').strftime("%Y-%m-%d %H:%M:%S")
+            last_modified = file_meta.get('LastModified').strftime(
+                "%Y-%m-%d %H:%M:%S")
             size = file_meta.get('Size')
 
             item = Item('file', file_name, last_modified, size)
@@ -236,9 +254,9 @@ class S3AsyncModel:
 
         return items
 
-    def _get_gpg_key_by_series(self, tarantool_series):
+    def _get_gpg_key_by_series(self, tarantool_series: str) -> Optional[str]:
         """Returns the GPG key ID according to "tarantool_series" of the repository."""
-        gpg_sign_key = ''
+        gpg_sign_key: Optional[str] = ''
         if tarantool_series == 'modules' and self.s3_settings.get('gpg_modules_sign_key'):
             gpg_sign_key = self.s3_settings.get('gpg_modules_sign_key')
         elif self.s3_settings.get('gpg_sign_key'):
@@ -246,7 +264,8 @@ class S3AsyncModel:
 
         return gpg_sign_key
 
-    def _upload_files(self, package, tarantool_series, origin_files):
+    def _upload_files(self, package: Package, tarantool_series: str,
+                      origin_files: Dict[str, Any]) -> None:
         """Upload files to one repo on S3."""
         # self.s3_settings['base_path'] can be None or '', in this case,
         # you do not need to add it to the path.
@@ -270,7 +289,7 @@ class S3AsyncModel:
 
         # List of repositories where the new package has been uploaded,
         # but the metainformation hasn't been updated yet.
-        unsync_repos_local = set()
+        unsync_repos_local: Set[RepoInfo] = set()
         for filename, file in package.files.items():
             path_list = S3AsyncModel._format_paths(dist_path, package.repo_annotation.dist_version,
                                                    dist_base, filename, package.product)
@@ -298,7 +317,7 @@ class S3AsyncModel:
         self.unsync_repos.update(unsync_repos_local)
         self.sync_lock.release()
 
-    def _get_deb_repo_info(self, base_path, gpg_key):
+    def _get_deb_repo_info(self, base_path: str, gpg_key) -> List[RepoInfo]:
         """Returns the RepoInfo list for a deb-based repository
         for updating metainformation with the 'mkrepo' tool.
         base_path(string) - path to the distribution.
@@ -330,7 +349,8 @@ class S3AsyncModel:
         # So we just return the information related with distribution.
         return [RepoInfo(path, gpg_key)]
 
-    def _get_rpm_repo_info(self, base_path, gpg_key, dist_versions):
+    def _get_rpm_repo_info(self, base_path: str, gpg_key: str,
+                           dist_versions: List[str]) -> List[RepoInfo]:
         """Returns the list of the paths to the rpm-based reposies
         for updating metainformation with the 'mkrepo' tool.
         base_path(string) - path to the distribution.
@@ -342,7 +362,7 @@ class S3AsyncModel:
         # In the case of an rpm-based distribution, one distribution version can
         # include several repositories (for example "x86_64" and "SRPM").
         # We must collect them all.
-        repos_list = []
+        repos_list: List[RepoInfo] = []
         for ver in dist_versions:
             # Path to all repositories of the distribution version.
             common_path = '/'.join([base_path, ver]) + '/'
@@ -360,11 +380,11 @@ class S3AsyncModel:
 
         return repos_list
 
-    def _get_repository_list(self):
+    def _get_repository_list(self) -> List[RepoInfo]:
         """Returns a list of paths to repositories in the current bucket."""
-        supported_repos = self.get_supported_repos()
-        repos_list = []
-        result_list = []
+        supported_repos: Dict[str, Any] = self.get_supported_repos()
+        repos_list: List[RepoInfo] = []
+        result_list: List[ApplyResult[List[RepoInfo]]] = []
 
         # Since collecting the list of paths to repositories involves a large
         # number of S3 requests through the network, it is recommended to use a
@@ -405,7 +425,7 @@ class S3AsyncModel:
 
         return repos_list
 
-    def _get_abs_path(self, path):
+    def _get_abs_path(self, path: str) -> str:
         """Get absolute (base_path + path) normalized path."""
 
         base_path = self.s3_settings.get('base_path') or ''
@@ -414,7 +434,7 @@ class S3AsyncModel:
 
         return abs_path
 
-    def determine_type(self, path):
+    def determine_type(self, path: str) -> Optional[str]:
         """Find an object spcified by "path" and determine its
         type. Type can be "directory", "file" or None if object hasn't found.
         """
@@ -446,13 +466,13 @@ class S3AsyncModel:
 
         return 'directory'
 
-    def get_supported_repos(self):
+    def get_supported_repos(self) -> Any:
         """Get description of the currently supported repos."""
         return self.s3_settings['supported_repos']
 
-    def update_repo(self, repo_annotation):
+    def update_repo(self, repo_annotation: RepoAnnotation):
         """Update all repositories according to the "repository annotation"."""
-        repo_list = []
+        repo_list: List[RepoInfo] = []
 
         dist_path = os.path.join(self.s3_settings.get('base_path', ''),
                                  repo_annotation.repo_kind,
@@ -477,7 +497,7 @@ class S3AsyncModel:
         self.unsync_repos.update(repo_list)
         self.sync_lock.release()
 
-    def sync_all_repos(self):
+    def sync_all_repos(self) -> None:
         """Update the metainformation of all known repositories."""
         # Get the information about location of all the
         # repositories from the bucket.
@@ -501,7 +521,7 @@ class S3AsyncModel:
                 # Wait for all additional workers to complete.
                 res.wait()
 
-    def sync(self, permanent):
+    def sync(self, permanent: bool) -> None:
         """Update a metainformation of repositoties from the "unsync_repo" set.
         permanent(bool) - describes whether the function should process data
         permanent or whether it can "return" if all current work has been
@@ -572,9 +592,9 @@ class S3AsyncModel:
                 logging.info('Stop sync thread.')
                 break
 
-    def put_package(self, package):
+    def put_package(self, package: Package) -> None:
         """Load the package to S3."""
-        tarantool_series_to_upload = []
+        tarantool_series_to_upload: List[str] = []
         if package.repo_annotation.tarantool_series == 'enabled':
             tarantool_series_to_upload = self.get_supported_repos()['enabled']
         else:
@@ -583,20 +603,20 @@ class S3AsyncModel:
         # Files already uploaded to S3.
         # Information from this dict is used to copy a file from
         # one repository to another if the file is already uploaded to S3.
-        origin_files = {}
+        origin_files: Dict[str, str] = {}
 
         for tarantool_series in tarantool_series_to_upload:
             self._upload_files(package, tarantool_series, origin_files)
 
-    def get_package(self, package):
+    def get_package(self, package: Package) -> None:
         """Download a package from S3."""
         NotImplementedError("get_package hasn't been implemented yet.")
 
-    def delete_package(self, package):
+    def delete_package(self, package: Package) -> None:
         """Delete a package from S3."""
         NotImplementedError("delete_package hasn't been implemented yet.")
 
-    def get_directory(self, path):
+    def get_directory(self, path: str) -> List[Item]:
         """Get lists and metadata of directories and files within
         directory from S3.
         """
@@ -620,13 +640,13 @@ class S3AsyncModel:
                            'Delimiter': '/',
                            'Prefix': abs_path}
 
-        items = []
+        items: List[Item] = []
         for objects in paginator.paginate(**list_parameters):
             items.extend(S3AsyncModel._objects_to_items(objects))
 
         return items
 
-    def get_file(self, path):
+    def get_file(self, path: str) -> boto3.StreamingBody:
         """Get a file from S3 as a "StreamingBody" object.
         See https://botocore.amazonaws.com/v1/documentation/api/latest/reference/response.html#botocore.response.StreamingBody
         """  # NOQA
@@ -647,6 +667,6 @@ class S3AsyncModel:
         # for more detaied description.
         return response.get('Body')
 
-    def delete_file(self, path):
+    def delete_file(self, path: str) -> None:
         """Delete a file from S3."""
         NotImplementedError("delete_file hasn't been implemented yet.")

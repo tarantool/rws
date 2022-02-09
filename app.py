@@ -5,6 +5,8 @@ import logging
 import os
 import re
 import subprocess as sp
+from typing import Any
+from typing import Dict
 
 from flask import Flask
 
@@ -14,7 +16,7 @@ from s3repo.model import S3AsyncModel
 from s3repo.view import S3View
 
 
-def load_cfg():
+def load_cfg() -> Dict[str, Any]:
     """Load and parse the config."""
     # Get path to config from env and check if it exists.
     env_cfg_path = os.getenv('RWS_CFG')
@@ -22,34 +24,34 @@ def load_cfg():
         raise RuntimeError('Configuration file does not exist.')
 
     # Parse config.
-    cfg = {}
+    cfg: Dict[str, Any] = {}
     with open(env_cfg_path) as cfg_file:
         cfg = json.load(cfg_file)
 
     return cfg
 
 
-def add_gpg_key(gpg_key):
+def add_gpg_key(gpg_key: bytes) -> str:
     """Adds the given keys to the keyring."""
     # Add keys to the keyring.
     cmd = ['gpg', '--batch', '--import']
     stdout = None
     with sp.Popen(cmd, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.STDOUT) as proc:
         stdout, _ = proc.communicate(input=gpg_key)
-        stdout = stdout.decode('utf-8')
+        stdout_bytes = stdout.decode('utf-8')
         if proc.returncode != 0:
-            raise RuntimeError('Can not add gpg key: "{0}".'.format(stdout))
+            raise RuntimeError('Can not add gpg key: "{0}".'.format(stdout_bytes))
 
     # Get name of the key from output.
     match = re.search(r'gpg: key (?P<name>[0-9A-F]{16}): secret key imported',
-                      stdout)
+                      stdout_bytes)
     if not match:
         raise RuntimeError('Can not get name of the key.')
 
     return match.group('name')
 
 
-def add_gpg_armored_key_to_list(env_name, key, updated_list):
+def add_gpg_armored_key_to_list(env_name: str, key: str, updated_list: Dict[str, Any]):
     """Adds the GPG armored key from the "env_name" environment variable to the
     "updated_list" with the "key" key.
     """
@@ -58,7 +60,7 @@ def add_gpg_armored_key_to_list(env_name, key, updated_list):
         updated_list[key] = add_gpg_key(gpg_key_armored.encode('ascii'))
 
 
-def get_bool_env(env_name, default=False):
+def get_bool_env(env_name: str, default=False) -> bool:
     """Return the value of an environment variable as bool (True or False)."""
     env_val = os.getenv(env_name, '')
 
@@ -70,18 +72,19 @@ def get_bool_env(env_name, default=False):
     return True
 
 
-def update_cfg_by_env(cfg):
+def update_cfg_by_env(cfg: Dict[str, Any]) -> None:
     """Update the config with data from environment variables."""
     # Get some configuration parameters from env.
-    env_model_settings = {}
-    env_model_settings['region'] = os.getenv('S3_REGION')
-    env_model_settings['endpoint_url'] = os.getenv('S3_URL')
-    env_model_settings['bucket_name'] = os.getenv('S3_BUCKET')
-    env_model_settings['base_path'] = os.getenv('S3_BASE_PATH')
-    env_model_settings['access_key_id'] = os.getenv('S3_ACCESS_KEY')
-    env_model_settings['secret_access_key'] = os.getenv('S3_SECRET_KEY')
-    env_model_settings['public_read'] = get_bool_env('S3_PUBLIC_READ', False)
-    env_model_settings['force_sync'] = get_bool_env('RWS_FORCE_SYNC', False)
+    env_model_settings = {
+        'region': os.getenv('S3_REGION'),
+        'endpoint_url': os.getenv('S3_URL'),
+        'bucket_name': os.getenv('S3_BUCKET'),
+        'base_path': os.getenv('S3_BASE_PATH'),
+        'access_key_id': os.getenv('S3_ACCESS_KEY'),
+        'secret_access_key': os.getenv('S3_SECRET_KEY'),
+        'public_read': get_bool_env('S3_PUBLIC_READ', False),
+        'force_sync': get_bool_env('RWS_FORCE_SYNC', False)
+    }
 
     # GPG_SIGN_KEY_ARMORED stores GPG secret key for signing the repositories
     # metadata.
@@ -91,10 +94,14 @@ def update_cfg_by_env(cfg):
     # "modules" repository metadata.
     add_gpg_armored_key_to_list('GPG_MODULES_SIGN_KEY_ARMORED',
                                 'gpg_modules_sign_key', env_model_settings)
+    # metadata. Our task is to add this key to the system and get its name.
 
-    env_common_settings = {}
-    env_common_settings['credentials'] = \
-        json.loads(os.environ.get('RWS_CREDENTIALS'))
+    if (cred := os.environ.get('RWS_CREDENTIALS')) is None:
+        raise Exception("There is no RWS_CREDENTIALS")
+
+    env_common_settings = {
+        'credentials': json.loads(cred)
+    }
 
     # Check if credentials are set for at least one user.
     if len(env_common_settings['credentials']) < 1:
@@ -112,13 +119,13 @@ def update_cfg_by_env(cfg):
             cfg['common'][item[0]] = item[1]
 
 
-def logging_cfg():
+def logging_cfg() -> None:
     """Configure logging."""
-    logging.basicConfig(format='%(asctime)s (%(levelname)s) %(message)s',
-                        level=logging.INFO)
+    logging.basicConfig(
+        format='%(asctime)s (%(levelname)s) %(message)s', level=logging.INFO)
 
 
-def server_prepare():
+def server_prepare() -> None:
     """Prepare server for run."""
     # Get configuration.
     logging.info('Load cfg...')

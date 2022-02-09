@@ -2,6 +2,9 @@
 
 import logging
 import os
+from typing import Any
+from typing import Dict
+from typing import List
 
 from flask import jsonify
 from flask import request
@@ -9,6 +12,7 @@ from flask.views import MethodView
 
 from helpers.auth_provider import auth_provider
 from s3repo.model import ALLOWED_EXTENSIONS
+from s3repo.model import S3AsyncModel
 from s3repo.model import S3ModelRequestError
 from s3repo.package import Package
 from s3repo.repoinfo import RepoAnnotation
@@ -17,11 +21,11 @@ from s3repo.repoinfo import RepoAnnotation
 class S3Controller(MethodView):
     """Controller for working with S3 according to the REST model."""
 
-    def __init__(self, model):
+    def __init__(self, model: S3AsyncModel) -> None:
         self.model = model
 
     @staticmethod
-    def check_filename(filename):
+    def check_filename(filename: str) -> bool:
         """Checks if the filename corresponds the model requirements."""
         if filename == '' or not ('.' in filename and
                                   os.path.splitext(filename)[1] in ALLOWED_EXTENSIONS):
@@ -30,14 +34,33 @@ class S3Controller(MethodView):
         return True
 
     @staticmethod
-    def response_message(message, status):
+    def check_path(path: List[str], supported_repos: Dict[str, Any]) -> None:
+        """Checks if the given distribution is supported for
+        uploading packages.
+        """
+        # Correct path = repo_kind/tarantool_series/dist/dist_ver
+        # Example: live/1.10/el/7
+        if len(path) != 4:
+            raise RuntimeError('Invalid URL.')
+
+        if path[0] not in supported_repos['repo_kind']:
+            raise RuntimeError('Repo kind "' + path[0] + '" is not supported.')
+        if path[1] not in supported_repos['tarantool_series']:
+            raise RuntimeError('Tarantool series "' + path[1] + '"" is not supported.')
+        if path[2] not in supported_repos['distrs']:
+            raise RuntimeError('Distribution "' + path[2] + '" is not supported.')
+        if path[3] not in supported_repos['distrs'][path[2]]['versions']:
+            raise RuntimeError('Distribution version "' + path[3] + '" is not supported.')
+
+    @staticmethod
+    def response_message(message: str, status: int) -> jsonify:
         """Generate response with a message."""
         response = jsonify({'message': message})
         response.status_code = status
         return response
 
     @auth_provider.login_required
-    def put(self, subpath):
+    def put(self, subpath: str) -> jsonify:
         """Generates a Package object from the request and tries
         to upload it to S3 using S3Model.
         """
@@ -74,7 +97,7 @@ class S3Controller(MethodView):
         return S3Controller.response_message('OK', 201)
 
     @auth_provider.login_required
-    def post(self, subpath):
+    def post(self, subpath: str) -> jsonify:
         """Update metainformation of the repository."""
         try:
             repo_annotation = RepoAnnotation(subpath, self.model.get_supported_repos())
@@ -93,7 +116,7 @@ class S3Controller(MethodView):
         logging.info(msg)
         return S3Controller.response_message('OK', 200)
 
-    def delete(self, subpath):
+    def delete(self, subpath: str) -> jsonify:
         """Delete the file or Package according to the "subpath" path."""
         return S3Controller.response_message('Delete has not yet been implemented.',
                                              501)
