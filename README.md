@@ -154,10 +154,6 @@ Configuration file parameters(JSON, for example see `config.default`):
   * `supported_repos` - describes the supported repositories.
     * `repo_kind` - kind of repository (live, release, ...).
     * `tarantool_series` - list of the supported tarantool series.
-    * `enabled` - list of "enabled" tarantool series. When uploading packages
-      to the repository, instead of specific tarantool version `enabled` can be
-      used. In this case, the package will be uploaded in all tarantool series
-      that are in the `enabled` list.
     * `distrs` - describes the supported versions of distributions.
 
 Tip (hashing password for credentials):
