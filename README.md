@@ -164,7 +164,3 @@ Tip (hashing password for credentials):
 ```bash
 python3 -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('password'))"
 ```
-
-## Caution
-
-This service is in early alpha.
