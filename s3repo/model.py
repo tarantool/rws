@@ -280,7 +280,13 @@ class S3AsyncModel:
                 # If a file needs to be uploaded to several repositories:
                 # it is uploaded to one of them, and then copied to others.
                 if filename in origin_files:
-                    self.bucket.copy(origin_files[filename], path)
+                    # In the documentation
+                    # (https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Bucket.copy)
+                    # `Bucket.copy` uses `ExtraArgs` which only allow `ALLOWED_DOWNLOAD_ARGS`
+                    # (don't include `ACL`). But in fact `ALLOWED_COPY_ARGS` is used for copying
+                    # (https://github.com/boto/s3transfer/blob/279f82c6f9d01b19abf69d8fa08441c2064fba7f/s3transfer/manager.py#L381).
+                    # So, we can use `ACL` in `ExtraArgs`.
+                    self.bucket.copy(origin_files[filename], path, ExtraArgs=extra_args)
                 else:
                     obj = self.bucket.Object(path)
                     obj.upload_fileobj(file, ExtraArgs=extra_args)
