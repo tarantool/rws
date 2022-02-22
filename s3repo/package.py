@@ -1,7 +1,7 @@
-"""Description of the uploaded / downloaded package."""
+"""Description of the uploaded package."""
 
 class Package:
-    """Description of the uploaded / downloaded package."""
+    """Description of the uploaded package."""
 
     def __init__(self):
         # Annotation of the repository.
