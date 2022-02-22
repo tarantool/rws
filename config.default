@@ -1,4 +1,7 @@
 {
+  "common": {
+    "sync_on_start": false
+  },
   "model": {
     "supported_repos": {
       "repo_kind": [
