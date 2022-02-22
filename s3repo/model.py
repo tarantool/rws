@@ -516,50 +516,67 @@ class S3AsyncModel:
 
     def put_package(self, package):
         """Load the package to S3."""
-        # self.s3_settings['base_path'] can be None or '', in this case,
-        # you do not need to add it to the path.
-        dist_path_list = [
-            package.repo_annotation.repo_kind,
-            package.repo_annotation.tarantool_series,
-            package.repo_annotation.dist
-        ]
-        if self.s3_settings.get('base_path', ''):
-            dist_path_list.insert(0, self.s3_settings['base_path'])
+        # Files already uploaded to S3.
+        # Information from this dict is used to copy a file from
+        # one repository to another if the file is already uploaded to S3.
+        origin_files = {}
 
-        dist_path = '/'.join(dist_path_list)
-        dist_base = self.get_supported_repos()['distrs'][package.repo_annotation.dist]['base']
+        for repo_annotation in package.repo_annotations:
+            # self.s3_settings['base_path'] can be None or '', in this case,
+            # you do not need to add it to the path.
+            dist_path_list = [
+                repo_annotation.repo_kind,
+                repo_annotation.tarantool_series,
+                repo_annotation.dist
+            ]
+            if self.s3_settings.get('base_path', ''):
+                dist_path_list.insert(0, self.s3_settings['base_path'])
 
-        # Set the arguments of the uploaded files according to the settings.
-        extra_args = {}
-        if self.s3_settings.get('public_read'):
-            extra_args['ACL'] = 'public-read'
+            dist_path = '/'.join(dist_path_list)
+            dist_base = self.get_supported_repos()['distrs'][repo_annotation.dist]['base']
 
-        gpg_sign_key = self._get_gpg_key_by_series(package.repo_annotation.tarantool_series)
+            # Set the arguments of the uploaded files according to the settings.
+            extra_args = {}
+            if self.s3_settings.get('public_read'):
+                extra_args['ACL'] = 'public-read'
 
-        # List of repositories where the new package has been uploaded,
-        # but the metainformation hasn't been updated yet.
-        unsync_repos_local = set()
-        for filename, file in package.files.items():
-            path_list = S3AsyncModel._format_paths(dist_path, package.repo_annotation.dist_version,
-                                                   dist_base, filename, package.product)
+            gpg_sign_key = self._get_gpg_key_by_series(repo_annotation.tarantool_series)
 
-            for repo_path, path in path_list:
-                obj = self.bucket.Object(path)
-                obj.upload_fileobj(file, ExtraArgs=extra_args)
-                origin_files[filename] = {
-                    'Bucket': self.bucket.name,
-                    'Key': path
-                }
+            # List of repositories where the new package has been uploaded,
+            # but the metainformation hasn't been updated yet.
+            unsync_repos_local = set()
+            for filename, file in package.files.items():
+                path_list = S3AsyncModel._format_paths(dist_path, repo_annotation.dist_version,
+                                                       dist_base, filename, package.product)
 
-                # Several files can be uploaded to the same repo.
-                # Let's add the repo to the local "unsync_repos" set
-                # and merge it with the global one after the end of
-                # the iteration.
-                unsync_repos_local.add(RepoInfo(repo_path, gpg_sign_key))
+                for repo_path, path in path_list:
+                    # If a file needs to be uploaded to several repositories:
+                    # it is uploaded to one of them, and then copied to others.
+                    if filename in origin_files:
+                        # In the documentation
+                        # (https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Bucket.copy)
+                        # `Bucket.copy` uses `ExtraArgs` which only allow `ALLOWED_DOWNLOAD_ARGS`
+                        # (don't include `ACL`). But in fact `ALLOWED_COPY_ARGS` is used for copying
+                        # (https://github.com/boto/s3transfer/blob/279f82c6f9d01b19abf69d8fa08441c2064fba7f/s3transfer/manager.py#L381).
+                        # So, we can use `ACL` in `ExtraArgs`.
+                        self.bucket.copy(origin_files[filename], path, ExtraArgs=extra_args)
+                    else:
+                        obj = self.bucket.Object(path)
+                        obj.upload_fileobj(file, ExtraArgs=extra_args)
+                        origin_files[filename] = {
+                            'Bucket': self.bucket.name,
+                            'Key': path
+                        }
 
-        self.sync_lock.acquire()
-        self.unsync_repos.update(unsync_repos_local)
-        self.sync_lock.release()
+                    # Several files can be uploaded to the same repo.
+                    # Let's add the repo to the local "unsync_repos" set
+                    # and merge it with the global one after the end of
+                    # the iteration.
+                    unsync_repos_local.add(RepoInfo(repo_path, gpg_sign_key))
+
+            self.sync_lock.acquire()
+            self.unsync_repos.update(unsync_repos_local)
+            self.sync_lock.release()
 
     def get_package(self, package):
         """Download a package from S3."""

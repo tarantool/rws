@@ -4,8 +4,8 @@ class Package:
     """Description of the uploaded package."""
 
     def __init__(self):
-        # Annotation of the repository.
-        self.repo_annotation = None
+        # Annotations of the repositories where the package should be loaded.
+        self.repo_annotations = []
         # The name of the product to be used in the deb repositories.
         # Example: .../release/series-2/ubuntu/pool/focal/main/p/product_name/...
         self.product = ''

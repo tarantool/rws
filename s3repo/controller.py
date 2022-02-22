@@ -53,7 +53,7 @@ class S3Controller(MethodView):
             package.add_file(file.filename, file)
 
         try:
-            package.repo_annotation = RepoAnnotation(subpath, self.model.get_supported_repos())
+            package.repo_annotations.append(RepoAnnotation(subpath, self.model.get_supported_repos()))
         except RuntimeError as err:
             logging.warning(str(err))
             return S3Controller.response_message(str(err), 400)
