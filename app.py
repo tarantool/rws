@@ -111,6 +111,9 @@ def update_cfg_by_env(cfg):
         if item[1]:
             cfg['common'][item[0]] = item[1]
 
+    if cfg.get('anchors') is None:
+        cfg['anchors'] = {}
+
 
 def logging_cfg():
     """Configure logging."""
@@ -141,7 +144,7 @@ def server_prepare():
     logging.info('Set handlers...')
 
     # Set the controller to work with S3.
-    s3_controller = S3Controller.as_view('s3_controller', s3_model)
+    s3_controller = S3Controller.as_view('s3_controller', s3_model, cfg['anchors'])
     app.add_url_rule('/<path:subpath>', view_func=s3_controller,
         methods=['PUT', 'POST', 'DELETE'])
 
