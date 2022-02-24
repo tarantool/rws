@@ -155,6 +155,31 @@ Configuration file parameters(JSON, for example see `config.default`):
     * `repo_kind` - kind of repository (live, release, ...).
     * `tarantool_series` - list of the supported tarantool series.
     * `distrs` - describes the supported versions of distributions.
+* `anchors` - list of "anchors" which can be used to push the package to
+  several repositories (`https://rws.service.org/anchor/el/7`).
+  <details><summary>Example:</summary>
+
+   config:
+   ``` json
+   "anchors": {
+     "tarantool-modules": [
+       "release/1.10/",
+       "release/modules/",
+       "live/1.10/"
+     ]
+   }
+   ```
+
+   URL: `https://rws.service.org/tarantool-modules/el/7`
+
+   The package will be pushed to:
+   ```
+   https://rws.service.org/release/1.10/el/7
+   https://rws.service.org/release/modules/el/7
+   https://rws.service.org/live/1.10/el/7
+   ```
+
+  </details>
 
 Tip (hashing password for credentials):
 ```bash
