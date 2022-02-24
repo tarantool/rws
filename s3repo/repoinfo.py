@@ -48,10 +48,10 @@ class RepoAnnotation:
         self.dist_version = path_list[3]
 
     def __str__(self):
-        return '/'.join(self.repo_kind,
+        return '/'.join((self.repo_kind,
                         self.tarantool_series,
                         self.dist,
-                        self.dist_version)
+                        self.dist_version))
 
     @staticmethod
     def check_path(path, supported_repos):
