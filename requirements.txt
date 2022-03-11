@@ -3,3 +3,4 @@ Flask==1.1.2
 Flask-HTTPAuth==4.2.0
 mkrepo==0.1.5
 gunicorn==20.1.0
+itsdangerous==2.0.1
