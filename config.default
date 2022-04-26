@@ -57,7 +57,8 @@
             "trusty",
             "xenial",
             "hirsute",
-            "groovy"
+            "groovy",
+            "impish"
           ]
         },
         "el": {
