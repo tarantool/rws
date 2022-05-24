@@ -1,5 +1,6 @@
 """View for working with the repositories on S3."""
 
+import logging
 import os
 
 from flask import render_template
@@ -84,5 +85,7 @@ class S3View(View):
                 return S3View._get_file(path, response)
             else:
                 return render_template('404.html')
-        except RuntimeError:
+        except RuntimeError as err:
+            logging.warning(
+                'An error occurred while displaying the object({0}): "{1}"'.format(path ,err))
             return render_template('500.html', err_msg=err_msg)
