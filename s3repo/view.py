@@ -73,16 +73,16 @@ class S3View(View):
         err_msg = ''
         try:
             if obj_type == 'directory':
-                items = self.model.get_directory(path)
                 err_msg = "Can't show the directory in S3."
+                items = self.model.get_directory(path)
                 if path != '':
                     path = path + '/'
                 return S3View._get_directory(path, items)
             elif obj_type == 'file':
-                response = self.model.get_file(path)
                 err_msg = "Can't download file from S3."
+                response = self.model.get_file(path)
                 return S3View._get_file(path, response)
             else:
                 return render_template('404.html')
         except RuntimeError:
-            return render_template('500.html', {'err_msg': err_msg})
+            return render_template('500.html', err_msg=err_msg)
