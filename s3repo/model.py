@@ -198,13 +198,6 @@ class S3AsyncModel:
         # +------+------+--------------+------+
         Item = namedtuple('Item', fields, defaults=['', '', '', ''])
 
-        # "KeyCount" is the number of keys returned with this
-        # request. KeyCount is 1 for emtpy directory (this folder
-        # itself as a key). Zero KeyCount means that this
-        # requested directory (prefix) doesn't exist.
-        if not objects.get('KeyCount'):
-            raise RuntimeError('No such directory.')
-
         # Actually, S3 doesn't use the term directory/path, it
         # simply maps the objects inside the bucket to a key like
         # "path/to/object", where "/" is used as a delimiter for
@@ -609,13 +602,14 @@ class S3AsyncModel:
         """
 
         abs_path = self._get_abs_path(path)
-        if abs_path != '':
-            abs_path = abs_path + '/'
 
-        paginator = self.s3_client.get_paginator('list_objects_v2')
         # Parameters for list_objects_v2():
         # * "Bucket" is a bucket name.
         # * "Delimiter" is a character you use to group keys.
+        # * "MaxKeys" sets the maximum number of keys returned in
+        # the response. By default the action returns up to 1,000
+        # key names. The response might contain fewer keys but will
+        # never contain more.
         # * "Prefix" limits the response to keys that begin with
         # the specified prefix i.e. it allows to get files and
         # subdiectories located only in directory specified by
@@ -625,7 +619,23 @@ class S3AsyncModel:
         # for more detaied description.
         list_parameters = {'Bucket': self.bucket.name,
                            'Delimiter': '/',
+                           'MaxKeys': 1,
                            'Prefix': abs_path}
+
+        # Check the existence of the directory.
+        # https://stackoverflow.com/a/68910145
+        objects = self.s3_client.list_objects_v2(**list_parameters)
+        if not 'CommonPrefixes' in objects:
+            raise RuntimeError('No such directory.')
+
+        # Get all objects from the directory.
+        list_parameters['MaxKeys'] = 1000
+        # To get the "content" of the directory, we must add "/" at the end of the path.
+        if abs_path != '':
+            abs_path = abs_path + '/'
+        list_parameters['Prefix'] = abs_path
+
+        paginator = self.s3_client.get_paginator('list_objects_v2')
 
         items = []
         for objects in paginator.paginate(**list_parameters):
