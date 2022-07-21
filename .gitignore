@@ -6,3 +6,4 @@ pyvenv.cfg
 __pycache__/*
 s3repo/__pycache__/*
 helpers/__pycache__/*
+.idea/*
