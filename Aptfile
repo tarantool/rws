@@ -1,0 +1,2 @@
+# zstd is needed for mkrepo library.
+zstd
