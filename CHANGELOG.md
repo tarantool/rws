@@ -5,13 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.2] - 2022-07-22
 
 ### Added
 
-- Added the `zstd` deb package as a dependency that is needed for the `mkrepo` 
-  library. The dependency is stored in the special files `apt-packages` and 
-  `Aptfile` that can be read by Dokku and Heroku services correspondingly to 
+- Added the `zstd` deb package as a dependency that is needed for the `mkrepo`
+  library. The dependency is stored in the special files `apt-packages` and
+  `Aptfile` that can be read by Dokku and Heroku services correspondingly to
   install required packages while RWS deployment.
 
 ## [1.0.1] - 2022-07-12
