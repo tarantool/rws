@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Added support of RedOS 7.3.
 
+### Changed
+
+- Updated required version of `mkrepo` to 0.1.10. The new version of `mkrepo`
+  contains major bug fixes related to the processing of rpm repository metadata.
+
 ## [1.0.2] - 2022-07-22
 
 ### Added
