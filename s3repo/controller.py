@@ -82,6 +82,12 @@ class S3Controller(MethodView):
         package.product = request.form.get('product', '')
         for _, file in request.files.items():
             if not S3Controller.check_filename(file.filename):
+                # Temporary trick to skip the ".ddeb" files.
+                if '.' in file.filename and \
+                        os.path.splitext(file.filename)[1] == '.ddeb':
+                    logging.warning('Skip file: ' + file.filename)
+                    continue
+
                 msg = 'Invalid filename. Allowed file extensions: ' +\
                     ', '.join(ALLOWED_EXTENSIONS)
                 logging.warning(msg)
