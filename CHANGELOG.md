@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Now the `.ddeb` files are simply skipped and all other files in the package
+  continue to be processed. Previously, this caused fail package uploading.
+
 ## [1.0.5] - 2022-12-07
 
 ### Changed
