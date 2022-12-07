@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Changed the version of dokku deploy action to patched one which supports
   deploying to multiple environments.
 - Updated checkout action to a newer version.
+- Updated required version of `mkrepo` to 1.0.2.
+  The new release of `mkrepo` contains several improvements and bug fixes. 
+  The most significant of them are auto-installation of required package 
+  dependencies, fixing Python 3.6 compatibility, and bumping `boto3` version 
+  to 1.17.5.
 
 ## [1.0.4] - 2022-11-24
 
