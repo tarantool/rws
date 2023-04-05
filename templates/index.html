@@ -9,7 +9,7 @@
         <thead>
             <tr>
                 <th>
-                    <img class=inverted-png src="{{url_for('static', filename='/icons/blank.png')}}" alt="[ICO]"/>
+                    <img class=inverted-png src="{{url_for('static', filename='icons/blank.png')}}" alt="[ICO]"/>
                 </th>
                 {% for item in ['Name', 'Last Modified', 'Size'] %}
                     <th>{{ item }}</th>
@@ -19,7 +19,7 @@
         <tbody>
         <tr>
             <td>
-                <img class=inverted-png src="{{ url_for('static', filename='/icons/back.png') }}" alt="[PARENTDIR]">
+                <img class=inverted-png src="{{ url_for('static', filename='icons/back.png') }}" alt="[PARENTDIR]">
             </td>
             <td>
                 <a href="{{ url_for('s3_view', subpath=parent_path) }}"> Parent Directory </a>
@@ -30,7 +30,7 @@
         {% for item in items %}
             <tr>
                 <td>
-                    <img class=inverted-png src="{{ url_for('static', filename='/icons/' + item.Type + '.png') }}" alt="[DIR]">
+                    <img class=inverted-png src="{{ url_for('static', filename='icons/' + item.Type + '.png') }}" alt="[DIR]">
                 </td>
                 <td>
                     {% set item_path = '/'.join([path[:-1], item.Name]) %}
