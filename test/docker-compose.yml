@@ -1,0 +1,34 @@
+version: '3'
+services:
+  minio:
+    image: bitnami/minio:latest
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: superpassword
+    ports:
+      - 127.0.0.1:9000:9000
+      - 127.0.0.1:9090:9090
+    command: sh -c "mkdir -p /data/rws; minio server /data --console-address :9090" 
+    volumes:
+      - 'minio_data:/data'
+
+  rws:
+    image: rws
+    environment:
+      - RWS_CFG=/app/config.default
+      - S3_REGION=rm-msk1
+      # User rws and password rws.
+      - 'RWS_CREDENTIALS={"rws": "pbkdf2:sha256:600000$$qBykxVCilTvUzGxO$$6d2e084029badef5f46e1ddbfb4e5c44aa4dbbba350bc263d212b062178ccbaa"}'
+      - S3_ACCESS_KEY=admin
+      - S3_SECRET_KEY=superpassword
+      - S3_URL=http://minio:9000
+      - S3_BUCKET=rws
+    working_dir: /app
+    ports:
+      - 127.0.0.1:5000:5000
+    build: ../
+    entrypoint: ["flask", "run", "--host", "0.0.0.0"]
+
+volumes:
+  minio_data:
+    driver: local

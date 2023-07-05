@@ -18,6 +18,7 @@ supported. S3 is used as storage.
 * [Configuration](#configuration)
 * [Caution](#caution)
 * [Docker](#docker)
+* [Test stand](#test-stand)
 
 ## Getting started
 
@@ -204,3 +205,15 @@ docker run \
     -p 5000:5000 \
     rws
 ```
+
+## Test stand
+
+For setting up a test stand, `docker-compose` can be used:
+
+```bash
+docker-compose -f test/docker-compose.yml up
+```
+
+It will run RWS and MinIO (S3 storage) in the separate Docker containers.
+RWS and MinIO will listen to `:5000` and `:9000` ports respectively.
+Default credentials for connecting to RWS are `rws:rws`.

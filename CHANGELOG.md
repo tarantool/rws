@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Added support of static repositories.
 - Added `Dockerfile` to build Docker images.
+- Added `docker-compose.yml` for setting up a test stand.
 
 ## [1.0.7] - 2023-04-06
 
