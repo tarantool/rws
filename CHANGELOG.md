@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
 - Added support of static repositories.
+- Added `Dockerfile` to build Docker images.
 
 ## [1.0.7] - 2023-04-06
 
