@@ -17,6 +17,7 @@ supported. S3 is used as storage.
   * [Usage](#usage)
 * [Configuration](#configuration)
 * [Caution](#caution)
+* [Docker](#docker)
 
 ## Getting started
 
@@ -184,4 +185,22 @@ Configuration file parameters(JSON, for example see `config.default`):
 Tip (hashing password for credentials):
 ```bash
 python3 -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('password'))"
+```
+
+## Docker
+
+For running RWS via Docker, just create an image and run a container from it.
+
+```bash
+docker build -t rws .
+docker run \
+    -e RWS_CFG=/app/config.default \
+    -e RWS_CREDENTIALS='{"user": "password"}' \
+    -e S3_ACCESS_KEY=foo \
+    -e S3_SECRET_KEY=bar \
+    -e S3_REGION=foobar \
+    -e S3_URL=http://127.0.0.1:9000 \
+    -e S3_BUCKET=barfoo \
+    -p 5000:5000 \
+    rws
 ```
