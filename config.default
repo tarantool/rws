@@ -29,6 +29,7 @@
         "debian": {
           "base": "deb",
           "versions": [
+            "bookworm",
             "bullseye",
             "buster",
             "jessie",
@@ -72,7 +73,9 @@
             "33",
             "34",
             "35",
-            "36"
+            "36",
+            "37",
+            "38"
           ]
         },
         "opensuse-leap": {
