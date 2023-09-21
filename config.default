@@ -91,6 +91,12 @@
             "7.3"
           ]
         },
+        "astralinux": {
+          "base": "deb",
+          "versions": [
+            "1.7"
+          ]
+        },
         "linux-rpm": {
           "base": "rpm",
           "versions": [
