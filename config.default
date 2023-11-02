@@ -91,7 +91,7 @@
             "7.3"
           ]
         },
-        "astralinux": {
+        "astra": {
           "base": "deb",
           "versions": [
             "1.7"
