@@ -97,6 +97,13 @@
             "1.7"
           ]
         },
+        "almalinux": {
+          "base": "rpm",
+          "versions": [
+            "8",
+            "9"
+          ]
+        },
         "linux-rpm": {
           "base": "rpm",
           "versions": [
