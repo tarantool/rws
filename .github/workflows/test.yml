@@ -1,0 +1,36 @@
+name: Test app start
+
+on:
+  push:
+    branches-ignore:
+      - 'master'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Build docker image
+        run: docker build --tag rws --no-cache .
+
+      - name: Run app in docker container
+        run: |
+          echo "CONTAINER_ID=$(docker run \
+            --env RWS_CFG=/app/config.default \
+            --env RWS_CREDENTIALS='{"user": "password"}' \
+            --env S3_ACCESS_KEY=foo \
+            --env S3_SECRET_KEY=bar \
+            --env S3_REGION=foobar \
+            --env S3_URL=http://127.0.0.1:9000 \
+            --env S3_BUCKET=barfoo \
+            --publish 5000:5000 \
+            --detach rws)" >> $GITHUB_ENV
+
+      - name: Check app is running
+        run: |
+          sleep 10  # give the app enough time to start
+          docker logs ${CONTAINER_ID} 2>&1 | tee log.txt
+          grep 'Press CTRL+C to quit' log.txt
