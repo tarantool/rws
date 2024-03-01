@@ -20,3 +20,13 @@ jobs:
           dokku-host: ${{ secrets.DOKKU_HOST }}
           dokku-app-name: rws
           git-push-flags: '--force'
+      - name: Send notification on failure
+        if: failure()
+        uses: dasshit/myteam-notify@master
+        with:
+          api-url: https://api.internal.myteam.mail.ru/bot/v1/
+          bot-token: ${{ secrets.VKTEAMS_TARANTOOLBOT_TOKEN }}
+          chat-id: ${{ secrets.VKTEAMS_SERVICE_CHAT_ID }}
+          msg-text: >
+            Dokku deployment failure for ${{ github.repository }}:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
