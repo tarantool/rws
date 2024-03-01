@@ -2,6 +2,8 @@ name: Deploy to Dokku
 
 on:
   push:
+    branches:
+      - 'master'
     tags:
       - '*'
   workflow_dispatch:
@@ -18,7 +20,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
           dokku-host: ${{ secrets.DOKKU_HOST }}
-          dokku-app-name: rws
+          dokku-app-name: rws${{ !startsWith(github.ref, 'refs/tags/') && '-dev' }}
           git-push-flags: '--force'
       - name: Send notification on failure
         if: failure()
