@@ -1,4 +1,8 @@
 boto3==1.17.5
+# Werkzeug must be before Flask entry because Werkzeug 3 (it's incompatible with
+# Flask 2) has been released and Flask doesn't specify this dependency correctly
+# (it says Werkzeug >= 2.0).
+Werkzeug==2.3.8
 Flask==2.1.0
 Flask-HTTPAuth==4.6.0
 mkrepo==1.0.2
