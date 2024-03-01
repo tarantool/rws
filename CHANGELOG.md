@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Added support of Fedora 39.
 - Added support of AlmaLinux 8, 9.
-- Renamed `astralinux` to `astra`.
 - Added support of Astra Linux 1.7.
 
 ## [1.0.9] - 2023-08-31
