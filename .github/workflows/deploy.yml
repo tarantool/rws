@@ -12,11 +12,10 @@ jobs:
       - uses: actions/checkout@v3
         with:
             fetch-depth: 0
-      - id: deploy
-        name: Deploy to dokku
-        uses: NickVolynkin/dokku-deploy-github-action@allow-multiple-deployments
+      - name: Deploy to dokku
+        uses: tarantool/actions/dokku-deploy@master
         with:
-            ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-            dokku-host: ${{ secrets.DOKKU_HOST }}
-            app-name: ${{ secrets.DOKKU_APP }}
-            git-push-flags: '--force'
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          dokku-host: ${{ secrets.DOKKU_HOST }}
+          dokku-app-name: rws
+          git-push-flags: '--force'
