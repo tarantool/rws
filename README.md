@@ -193,7 +193,7 @@ python3 -c "from werkzeug.security import generate_password_hash; print(generate
 For running RWS via Docker, just create an image and run a container from it.
 
 ```bash
-docker build -t rws .
+docker build -t rws -f docker/Dockerfile .
 docker run \
     -e RWS_CFG=/app/config.default \
     -e RWS_CREDENTIALS='{"user": "password"}' \
@@ -206,12 +206,14 @@ docker run \
     rws
 ```
 
-## Test stand
+### Test stand
+
+Note, that a Docker image with tag `rws` should be build first.
 
 For setting up a test stand, `docker-compose` can be used:
 
 ```bash
-docker-compose -f test/docker-compose.yml up
+docker-compose -f docker/test/docker-compose.yml up
 ```
 
 It will run RWS and MinIO (S3 storage) in the separate Docker containers.
