@@ -48,7 +48,8 @@
             "hirsute",
             "groovy",
             "impish",
-            "jammy"
+            "jammy",
+            "noble"
           ]
         },
         "el": {
