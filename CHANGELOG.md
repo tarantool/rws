@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+- Added support of Ubuntu Noble (24.04).
+
 ### Changed
 
 - Changed deployment mode back to `buildpack`.
