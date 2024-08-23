@@ -1,0 +1,270 @@
+#!/usr/bin/env tarantool
+
+local json = require('json')
+local fio = require('fio')
+local log = require('log').new('rws-files')
+local fiber = require('fiber')
+local http_client = require('http.client')
+local argparse = require('internal.argparse').parse
+
+-- {{{ General purpose utils
+
+-- NB: The dedent() function is copied from tarantool sources.
+
+-- Remove indent from a text.
+--
+-- Similar to Python's textwrap.dedent().
+--
+-- It strips all newlines from beginning and all whitespace
+-- characters from the end for convenience use with multiline
+-- string literals ([[ <...> ]]).
+local function dedent(s)
+    local lines = s:lstrip('\n'):rstrip():split('\n')
+
+    local indent = math.huge
+    for _, line in ipairs(lines) do
+        if #line ~= 0 then
+            indent = math.min(indent, #line:match('^ *'))
+        end
+    end
+
+    local res = {}
+    for _, line in ipairs(lines) do
+        table.insert(res, line:sub(indent + 1))
+    end
+    return table.concat(res, '\n')
+end
+
+-- }}} General purpose utils
+
+local params_ok, params = pcall(argparse, arg, {
+    {'help',  'boolean'},
+    {'h',     'boolean'},
+    {'quiet', 'boolean'},
+    {'q',     'boolean'},
+})
+
+-- {{{ Print usage, handle incorrect params.
+
+local RESET_TERM = '\x1B[0m'
+local RED = '\x1B[31m'
+
+local function print_usage(stream)
+    local stream = stream or io.stdout
+    stream:write(dedent(([[
+        Usage: %s [--help|-h] [--quiet|-q] [remote dir]
+
+        The remote directory can be for example "/", "/release",
+        "/release/series-3" and so on.
+
+        See https://rws.tarantool.org for the directory hierarchy.
+    ]]):format(arg[0])) .. '\n')
+    stream:flush()
+end
+
+local function usage_error(fmt, ...)
+    local msg = fmt:format(...)
+    io.stderr:write(('%sError: %s%s\n\n'):format(RED, msg, RESET_TERM))
+    print_usage(io.stderr)
+    os.exit(1)
+end
+
+if not params_ok then
+    usage_error(tostring(params))
+end
+
+if #params > 1 then
+    usage_error('Only one positional parameter is expected, got %d.', #params)
+end
+
+if params[1] ~= nil and not params[1]:startswith('/') then
+    usage_error('The remote directory must start from "/", got %q.', params[1])
+end
+
+if params.help or params.h then
+    print_usage()
+    os.exit()
+end
+
+-- }}} Print usage, handle incorrect params.
+
+local base_url = 'https://rws.tarantool.org'
+
+local log_level = (params.quiet or params.q) and 'info' or 'debug'
+log.cfg({
+    modules = {['rws-files'] = log_level},
+})
+
+local function visit(ctx)
+    local dir = table.remove(ctx.next_dirs, 1)
+    assert(dir:startswith('/'), dir)
+    ctx.in_progress[dir] = true
+    ctx.visited_dirs[dir] = true
+
+    -- Fetch the page.
+    local url = base_url .. dir
+    log.debug('http get: %s', url)
+    local ok, res = pcall(http_client.get, url)
+    if not ok then
+        log.warn('http get error, retrying: %s', res)
+
+        -- Return to the queue to try again.
+        table.insert(ctx.next_dirs, dir)
+        ctx.in_progress[dir] = nil
+        ctx.visited_dirs[dir] = nil
+        return
+    end
+
+    -- We shouldn't download files.
+    --
+    -- Sadly, we can't check it using HTTP OPTIONS request type,
+    -- because it return text/html unconditionally.
+    local content_type = res.headers['content-type']
+    if not content_type:startswith('text/html') then
+        local err = 'URL %s gives a page with "content-type" = %q; should ' ..
+            'be excluded'
+        error(err:format(url, content_type))
+    end
+
+    if res.status ~= 200 then
+        log.warn('http get status %d, retrying', res.status)
+
+        -- Return to the queue to try again.
+        table.insert(ctx.next_dirs, dir)
+        ctx.in_progress[dir] = nil
+        ctx.visited_dirs[dir] = nil
+        return
+    end
+
+    local body = res.body
+
+    -- Parse <tr/> and <td/> tags.
+    local t = {}
+    body:gsub('<tr>(.-)</tr>', function(tr)
+        table.insert(t, {})
+        tr:gsub('<td>(.-)</td>', function(td)
+            table.insert(t[#t], td:strip())
+        end)
+    end)
+
+    -- Parse rows.
+    for i, row in ipairs(t) do
+        -- Skip header row.
+        if #row == 0 then
+            assert(i == 1)
+            goto continue
+        end
+        assert(#row == 4)
+
+        local is_dir
+
+        -- <img class=inverted-png src="/static/icons/back.png" alt="[PARENTDIR]">
+        -- <img class=inverted-png src="/static/icons/directory.png" alt="[DIR]">
+        -- <img class=inverted-png src="/static/icons/file.png" alt="[DIR]">
+        local img = t[i][1]
+        if img:match('/directory.png') ~= nil then
+            is_dir = true
+        elseif img:match('/file.png') ~= nil then
+            is_dir = false
+        else
+            assert(img:match('/back.png') ~= nil)
+            goto continue
+        end
+
+        -- 1. <a href="/path/to/parent/dir"> Parent Directory </a>
+        -- 2. <a href="/path/to/dir"> dir </a>
+        -- 3. <a href="/path/to/file"> file </a>
+        --
+        -- 1st is handled above.
+        local a = t[i][2]
+        a:gsub('<a href="(.-)"', function(next_path)
+            if ctx.visited_dirs[next_path] == nil then
+                if is_dir then
+                    log.debug('add directory: %s', next_path)
+                    table.insert(ctx.next_dirs, next_path)
+                else
+                    log.debug('add file: %s', next_path)
+                    table.insert(ctx.files, next_path)
+                end
+            else
+                log.debug('skip directory (already visited): %s', next_path)
+            end
+        end)
+
+        ::continue::
+    end
+
+    ctx.in_progress[dir] = nil
+end
+
+local function process(name, ctx)
+    fiber.self():name(name, {truncate = true})
+    log.debug('start worker %s', name)
+    local ok, err = pcall(function()
+        while true do
+            while next(ctx.next_dirs) ~= nil do
+                visit(ctx)
+            end
+            if next(ctx.in_progress) == nil then
+                break
+            end
+            log.debug('in progress: %s; sleeping...',
+                json.encode(ctx.in_progress))
+            fiber.sleep(0.01)
+        end
+    end)
+    if not ok then
+        log.error('error in worker %s', err)
+        os.exit(1)
+    end
+    log.debug('exit worker %s', name)
+end
+
+local start_dir = arg[1] or '/'
+log.debug('add directory: %s', start_dir)
+local ctx = {
+    in_progress = {},
+    files = {},
+    visited_dirs = {},
+    next_dirs = {start_dir},
+}
+
+local WORKERS_COUNT = 100
+log.info('Start %d workers', WORKERS_COUNT)
+local workers = {}
+for i = 1, WORKERS_COUNT do
+    local f = fiber.new(process, ('worker_%d'):format(i), ctx)
+    f:set_joinable(true)
+    table.insert(workers, f)
+end
+for i = 1, WORKERS_COUNT do
+    workers[i]:join()
+end
+log.info('All the %d workers are done', WORKERS_COUNT)
+
+table.sort(ctx.files)
+
+local result_file_name
+if start_dir == '/' then
+    result_file_name = 'rws-files.txt'
+else
+    local path = start_dir:gsub('/', '.')
+    result_file_name = ('rws-files%s.txt'):format(path)
+end
+
+-- NB: The mode is set explicitly due to
+-- https://github.com/tarantool/tarantool/issues/7981
+log.info('Open file %s for writing', result_file_name)
+local flags = {'O_CREAT', 'O_TRUNC', 'O_WRONLY'}
+local mode = tonumber('666', 8)
+local fh, err = fio.open(result_file_name, flags, mode)
+if err ~= nil then
+    error(err, 0)
+end
+for _, file in ipairs(ctx.files) do
+    fh:write(file .. '\n')
+end
+fh:close()
+log.info('Closing file %s', result_file_name)
+
+-- vim: set ft=lua:
