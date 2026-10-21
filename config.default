@@ -49,7 +49,8 @@
             "groovy",
             "impish",
             "jammy",
-            "noble"
+            "noble",
+            "resolute"
           ]
         },
         "el": {
