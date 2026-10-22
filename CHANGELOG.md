@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - Added support of Ubuntu Resolute (26.04).
 
+### Changed
+
+- Pinned the Python buildpack to v281 to fix the deployment on the `heroku-20`
+  stack.
+
 ## [1.0.12] - 2024-10-21
 
 ### Added
